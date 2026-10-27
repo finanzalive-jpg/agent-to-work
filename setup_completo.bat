@@ -62,16 +62,20 @@ echo [*] Configurazione hardware adatta per il modello: !MODELLO!
 echo [*] Download del modello AI locale (Potrebbe richiedere tempo)...
 ollama pull !MODELLO!
 
-:: 6. CLONAZIONE DEL PROGETTO AGENT-TO-WORK
-if not exist "agent-to-work" (
-    echo [*] Download dei file sorgenti di Agent-to-Work...
-    git clone https://github.com
-    cd agent-to-work
-) else (
-    cd agent-to-work
-    git pull origin main
-)
+:: 6. CLONAZIONE DEL PROGETTO SENZA PARENTESI COMPLESSE (RISOLUZIONE BUG)
+if exist "agent-to-work" goto aggiorna_repo
 
+echo [*] Download dei file sorgenti di Agent-to-Work...
+git clone https://github.com
+cd agent-to-work
+goto avvia_config
+
+:aggiorna_repo
+echo [*] Cartella esistente. Verifica aggiornamenti in corso...
+cd agent-to-work
+git pull origin main
+
+:avvia_config
 :: 7. INSTALLAZIONE DIPENDENZE E CONFIGURAZIONE LOCALE
 echo [*] Installazione librerie Python...
 pip install -r requirements.txt --upgrade
