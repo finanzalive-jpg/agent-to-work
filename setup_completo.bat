@@ -52,14 +52,14 @@ echo [*] Modello selezionato: !MODELLO!
 echo [*] Download del modello AI locale...
 ollama pull !MODELLO!
 
-:: 6. CLONAZIONE SEQUENZIALE PULITA (Senza blocchi condizionali complessi)
+:: 6. CLONAZIONE SEQUENZIALE LINEARE (Risoluzione definitiva bug stringa)
 echo [*] Download dei file sorgenti di Agent-to-Work...
 git clone https://github.com
 
-:: Spostamento dentro la cartella del progetto scaricato
+:: Spostamento fisico dentro la cartella scaricata
 cd agent-to-work
 
-:: 7. DIPENDENZE E CONFIGURAZIONE
+:: 7. DIPENDENZE E CONFIGURAZIONE HARDWARE LOCALE
 echo [*] Installazione librerie Python...
 pip install -r requirements.txt --upgrade
 echo [*] Generazione configurazione locale...
