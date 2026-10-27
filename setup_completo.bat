@@ -32,7 +32,7 @@ if %errorlevel% neq 0 (
     curl -L -o ollama_installer.exe "https://ollama.com"
     start /wait "" ollama_installer.exe /silent
     del ollama_installer.exe
-    start "" "C:\Users\%USERNAME%\AppData\Local\Programs\Ollama\ollama app.exe"
+    start "" "C:\Users\%%USERNAME%%\AppData\Local\Programs\Ollama\ollama app.exe"
     timeout /t 10 /nobreak >nul
 )
 echo [OK] Ollama verificato.
@@ -52,11 +52,11 @@ echo [*] Modello selezionato: !MODELLO!
 echo [*] Download del modello AI locale...
 ollama pull !MODELLO!
 
-:: 6. CLONAZIONE SEQUENZIALE LINEARE (Risoluzione definitiva bug stringa)
+:: 6. CLONAZIONE CORRETTA CON VIRGOLETTE E DESTINAZIONE FORZATA (RISOLUZIONE BUG)
 echo [*] Download dei file sorgenti di Agent-to-Work...
-git clone https://github.com
+git clone "https://github.com" agent-to-work
 
-:: Spostamento fisico dentro la cartella scaricata
+:: Entriamo dentro la cartella del progetto reale
 cd agent-to-work
 
 :: 7. DIPENDENZE E CONFIGURAZIONE HARDWARE LOCALE
