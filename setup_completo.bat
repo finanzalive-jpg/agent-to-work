@@ -52,11 +52,16 @@ echo [*] Modello selezionato: !MODELLO!
 echo [*] Download del modello AI locale...
 ollama pull !MODELLO!
 
-:: 6. CLONAZIONE CORRETTA CON VIRGOLETTE E DESTINAZIONE FORZATA (RISOLUZIONE BUG)
-echo [*] Download dei file sorgenti di Agent-to-Work...
-git clone "https://github.com" agent-to-work
+:: 6. DOWNLOAD SORGENTI TRAMITE ZIP (BYPASS TOTALE BUG GIT)
+echo [*] Download del pacchetto sorgente Agent-to-Work...
+curl -L -o sorgenti.zip "https://github.com"
 
-:: Entriamo dentro la cartella del progetto reale
+echo [*] Estrazione dei file in corso...
+tar -xf sorgenti.zip
+del sorgenti.zip
+
+:: Rinominiamo la cartella estratta da GitHub per mantenere lo standard del progetto
+ren agent-to-work-main agent-to-work
 cd agent-to-work
 
 :: 7. DIPENDENZE E CONFIGURAZIONE HARDWARE LOCALE
