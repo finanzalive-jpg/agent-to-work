@@ -6,11 +6,23 @@ import urllib.parse
 import urllib.request
 import xml.etree.ElementTree as ET
 
-# Importiamo i muscoli di Jarvis dalle sotto-cartelle
-from skills.system_skills import esegui_crea_cartella
-from skills.office_skills import esegui_crea_preventivo_word
+# 1. SCANSIONE DINAMICA DELLE SKILL PRESENTI NELLA CARTELLA
+def recupera_skills_locali():
+    cartella = os.path.join(os.path.dirname(__file__), "skills")
+    # Skill fisse di base già cablate nel routing originale
+    skills_rilevate = ["crea_cartella", "crea_preventivo", "meteo", "cerca_video", "cerca_musica", "mercati", "chiama_contatto", "conversazione_generica", "nessuna"]
+    
+    if os.path.exists(cartella):
+        for file in os.listdir(cartella):
+            if file.endswith(".py") and not file.startswith("__"):
+                nome_skill = file[:-3].replace("_skills", "")  # Rimuove il suffisso se presente
+                if nome_skill not in skills_rilevate:
+                    skills_rilevate.append(nome_skill)
+    return skills_rilevate
 
-# 1. Carichiamo la configurazione hardware salvata da install.py
+SKILLS_DISPONIBILI = recupera_skills_locali()
+
+# 2. Carichiamo la configurazione hardware salvata da install.py
 if not os.path.exists("config.json"):
     print("[X] Errore: Esegui prima 'python install.py' per configurare il sistema.")
     sys.exit(1)
@@ -22,14 +34,21 @@ NOME_ASSISTENTE = config.get("assistant_name", "Sara").lower()
 MODELLO = config.get("model_in_use", "qwen2.5:3b-instruct-q4_K_M")
 CONTESTO = config.get("num_ctx", 2048)
 
-# 2. Schema JSON nativo e vincolante per Ollama
+# Importiamo i moduli di Jarvis dalle sotto-cartelle
+try:
+    from skills.system_skills import esegui_crea_cartella
+    from skills.office_skills import esegui_crea_preventivo_word
+except ImportError as e:
+    print(f"[X] Avviso importazione moduli: {e}")
+
+# 3. Schema JSON nativo e vincolante per Ollama (Dinamico)
 SCHEMA_RIGIDO = {
     "type": "object",
     "properties": {
         "wake_word_detected": {"type": "boolean"},
         "skill_identificata": {
             "type": "string",
-            "enum": ["crea_cartella", "crea_preventivo", "meteo", "cerca_video", "cerca_musica", "mercati", "chiama_contatto", "conversazione_generica", "nessuna"]
+            "enum": SKILLS_DISPONIBILI  # Si aggiorna da solo in base ai file nella cartella!
         },
         "stato_flusso": {"type": "string", "enum": ["immediato", "in_corso", "completato"]},
         "parametri": {
@@ -52,8 +71,8 @@ SCHEMA_RIGIDO = {
     "required": ["wake_word_detected", "skill_identificata", "stato_flusso", "parametri", "risposta_vocale"]
 }
 
-# 3. System Prompt per la blindatura logica del modello
-SYSTEM_PROMPT = f"Tu sei il core esecutivo di AGENT-TO-WORK, un orchestratore di skill locale. L'utente ti ha configurato con il nome di attivazione: '{NOME_ASSISTENTE}'. Regole: 1. Comportati SOLO come un Intent Classifier. 2. Se l'utente chiede l'andamento di borse, indici azionari, bitcoin o mercati (es: DAX, FTSE MIB, S&P 500, Nikkei), imposta la skill_identificata su 'mercati' e lo stato_flusso su 'completato'. 3. Se chiede un video, usa 'cerca_video' e inserisci l'oggetto in parametri.target. 4. Se chiede una cartella, usa 'crea_cartella' e metti il nome in parametri.target."
+# 4. System Prompt per la blindatura logica del modello
+SYSTEM_PROMPT = f"Tu sei il core esecutivo di AGENT-TO-WORK, un orchestratore di skill locale. L'utente ti ha configurato con il nome di attivazione: '{NOME_ASSISTENTE}'. Regole: 1. Comportati SOLO come un Intent Classifier. 2. Se l'utente chiede l'andamento di borse, indici azionari, bitcoin o mercati (es: DAX, FTSE MIB, S&P 500, Nikkei), imposta la skill_identificata su 'mercati' e lo stato_flusso su 'completato'. 3. Se chiede un video, usa 'cerca_video' e inserisci l'oggetto in parametri.target. 4. Se chiede una cartella, usa 'crea_cartella' e metti il nome in parametri.target. Elenco completo delle skill permesse: {', '.join(SKILLS_DISPONIBILI)}."
 
 def interroga_assistente(testo_utente):
     """Invia la richiesta a Ollama forzando l'host locale corretto di Windows."""
@@ -77,7 +96,6 @@ def recupera_notizia_globale():
         req = urllib.request.Request(url_news, headers=headers)
         with urllib.request.urlopen(req, timeout=5) as response:
             xml_content = response.read().decode('utf-8')
-            # Parsing rapido di stringa del primo titolo valido
             inizio = xml_content.find("<title><![CDATA[")
             if inizio == -1: inizio = xml_content.find("<title>") + 7
             else: inizio += 16
@@ -92,7 +110,6 @@ def esegui_lettura_mercati_reali():
     headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'}
     indici_dati = {}
     
-    # Matrice simboli ufficiali per estrazione dati
     ticker_mappa = {
         "FTSE MIB": "FTSEMIB.MI",
         "S&P 500": "%5EGSPC",
@@ -102,16 +119,13 @@ def esegui_lettura_mercati_reali():
     
     for nome, ticker in ticker_mappa.items():
         try:
-            # Usiamo l'endpoint XML pubblico di Yahoo Finance mascherato, totalmente immune da rate-limiting
             url = f"https://yahoo.com{ticker}"
             req = urllib.request.Request(url, headers=headers)
             with urllib.request.urlopen(req, timeout=4) as response:
                 dati_json = json.loads(response.read().decode('utf-8'))
-                # Estraiamo il prezzo corrente di mercato aggiornato al secondo
-                prezzo = dati_json["optionChain"]["result"][0]["quote"]["regularMarketPrice"]
+                prezzo = dati_json["optionChain"]["result"]["quote"]["regularMarketPrice"]
                 indici_dati[nome] = f"{prezzo:,.2f}"
         except Exception:
-            # Fallback con dati storici reali della sessione se un singolo indice scade in timeout
             fallback = {"FTSE MIB": "49.376,38", "S&P 500": "7.684,26", "DAX": "25.181,65", "Nikkei 225": "62.189,65"}
             indici_dati[nome] = fallback[nome]
 
@@ -159,7 +173,8 @@ def esecutore_comandi(json_ricevuto):
 
 if __name__ == "__main__":
     print("=" * 60)
-    print(f"[*] Cervello di {NOME_ASSISTENTE.upper()} pronto. Skill FINANZA GLOBALE blindata.")
+    print(f"[*] Cervello di {NOME_ASSISTENTE.upper()} pronto. Scansione dinamica attiva.")
+    print(f"[*] Skill caricate automaticamente: {len(SKILLS_DISPONIBILI)}")
     print("Scrivi 'esci' per chiudere.")
     print("=" * 60)
     
