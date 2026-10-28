@@ -9,8 +9,8 @@ import xml.etree.ElementTree as ET
 # 1. SCANSIONE DINAMICA DELLE SKILL PRESENTI NELLA CARTELLA
 def recupera_skills_locali():
     cartella = os.path.join(os.path.dirname(__file__), "skills")
-    # Skill fisse di base già cablate nel routing originale
-    skills_rilevate = ["crea_cartella", "crea_preventivo", "meteo", "cerca_video", "cerca_musica", "mercati", "chiama_contatto", "conversazione_generica", "nessuna"]
+    # FIX: Aggiunta la skill 'rinomina_cartella' all'elenco delle competenze native riconosciute
+    skills_rilevate = ["crea_cartella", "rinomina_cartella", "crea_preventivo", "meteo", "cerca_video", "cerca_musica", "mercati", "chiama_contatto", "conversazione_generica", "nessuna"]
     
     if os.path.exists(cartella):
         for file in os.listdir(cartella):
@@ -36,7 +36,8 @@ CONTESTO = config.get("num_ctx", 2048)
 
 # Importiamo i moduli di Jarvis dalle sotto-cartelle
 try:
-    from skills.system_skills import esegui_crea_cartella
+    # FIX: Importazione della nuova funzione esegui_rinomina_cartella e della gestione browser corretta
+    from skills.system_skills import esegui_crea_cartella, esegui_rinomina_cartella, esegui_apri_browser
     from skills.office_skills import esegui_crea_preventivo_word
 except ImportError as e:
     print(f"[X] Avviso importazione moduli: {e}")
@@ -48,13 +49,15 @@ SCHEMA_RIGIDO = {
         "wake_word_detected": {"type": "boolean"},
         "skill_identificata": {
             "type": "string",
-            "enum": SKILLS_DISPONIBILI  # Si aggiorna da solo in base ai file nella cartella!
+            "enum": SKILLS_DISPONIBILI
         },
         "stato_flusso": {"type": "string", "enum": ["immediato", "in_corso", "completato"]},
         "parametri": {
             "type": "object",
             "properties": {
                 "target": {"type": "string"},
+                "vecchio_nome": {"type": "string"}, # Parametro per rinomina
+                "nuovo_nome": {"type": "string"},   # Parametro per rinomina
                 "dati_preventivo": {
                     "type": "object",
                     "properties": {
@@ -72,10 +75,17 @@ SCHEMA_RIGIDO = {
 }
 
 # 4. System Prompt per la blindatura logica del modello
-SYSTEM_PROMPT = f"Tu sei il core esecutivo di AGENT-TO-WORK, un orchestratore di skill locale. L'utente ti ha configurato con il nome di attivazione: '{NOME_ASSISTENTE}'. Regole: 1. Comportati SOLO come un Intent Classifier. 2. Se l'utente chiede l'andamento di borse, indici azionari, bitcoin o mercati (es: DAX, FTSE MIB, S&P 500, Nikkei), imposta la skill_identificata su 'mercati' e lo stato_flusso su 'completato'. 3. Se chiede un video, usa 'cerca_video' e inserisci l'oggetto in parametri.target. 4. Se chiede una cartella, usa 'crea_cartella' e metti il nome in parametri.target. Elenco completo delle skill permesse: {', '.join(SKILLS_DISPONIBILI)}."
+# FIX: Aggiornate le istruzioni operative fornendo all'LLM le regole per la rinomina cartelle
+SYSTEM_PROMPT = (
+    f"Tu sei il core esecutivo di AGENT-TO-WORK, un orchestratore di skill locale. L'utente ti ha configurato con il nome di attivazione: '{NOME_ASSISTENTE}'. "
+    f"Regole: 1. Comportati SOLO come un Intent Classifier. 2. Se l'utente chiede l'andamento di borse, indici azionari o mercati, usa 'mercati'. "
+    f"3. Se chiede un video, usa 'cerca_video' e inserisci l'oggetto da cercare in parametri.target. "
+    f"4. Se chiede di creare una cartella, usa 'crea_cartella' e inserisci il nome in parametri.target. "
+    f"5. Se chiede di rinominare o cambiare nome a una cartella esistente sul desktop, usa 'rinomina_cartella' ed estrai con precisione il vecchio nome in parametri.vecchio_nome e il nuovo nome in file parametri.nuovo_nome. "
+    f"Elenco completo delle skill permesse: {', '.join(SKILLS_DISPONIBILI)}."
+)
 
 def interroga_assistente(testo_utente):
-    """Invia la richiesta a Ollama forzando l'host locale corretto di Windows."""
     try:
         client = ollama.Client(host="http://127.0.0.1:11434")
         response = client.chat(
@@ -89,7 +99,6 @@ def interroga_assistente(testo_utente):
         return {"error": f"Errore durante l'interrogazione: {e}"}
 
 def recupera_notizia_globale():
-    """Estrae l'ultimissima agenzia di stampa flash da un feed economico affidabile e aperto."""
     try:
         url_news = "https://rainews.it"
         headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'}
@@ -106,7 +115,6 @@ def recupera_notizia_globale():
         return "Nessuna variazione macroeconomica di rilievo nelle ultime ore."
 
 def esegui_lettura_mercati_reali():
-    """Scarica i dati reali dei mercati (FTSE MIB, S&P 500, DAX, Nikkei) bypassando i blocchi bot."""
     headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'}
     indici_dati = {}
     
@@ -149,6 +157,8 @@ def esecutore_comandi(json_ricevuto):
     skill = json_ricevuto.get("skill_identificata")
     parametri = json_ricevuto.get("parametri", {})
     target = parametri.get("target", "").strip()
+    vecchio_nome = parametri.get("vecchio_nome", "").strip()
+    nuovo_nome = parametri.get("nuovo_nome", "").strip()
     dati_prev = parametri.get("dati_preventivo", {})
     
     print(f"\n[AVATAR]: {json_ricevuto.get('risposta_vocale')}")
@@ -157,12 +167,15 @@ def esecutore_comandi(json_ricevuto):
     if skill == "crea_cartella" and target:
         print(f"[SISTEMA]: {esegui_crea_cartella(target)}")
         
+    elif skill == "rinomina_cartella":
+        # FIX: Instradamento logico per la rinomina con parametri puliti
+        print(f"[SISTEMA]: {esegui_rinomina_cartella(vecchio_nome, nuovo_nome)}")
+        
     elif skill == "cerca_video" and target:
+        # FIX: Rimossa la sovrascrittura corrotta della stringa URL.
+        # Viene chiamata direttamente la skill centralizzata preposta all'apertura corretta del browser
         query_pulita = target.lower().replace("://youtube.com", "").replace("youtube.com", "").replace("comauto", "auto").replace("su youtube", "").replace("su internet", "").strip()
-        query_enc = urllib.parse.quote(query_pulita)
-        url_perfetto = f"https://://://youtube.com{query_enc}"
-        print(f"[SISTEMA]: Sto aprendo il browser su YouTube per: '{query_pulita}'")
-        os.system(f'start "" "{url_perfetto}"')
+        print(f"[SISTEMA]: {esegui_apri_browser(query_ricerca=query_pulita, piattaforma='youtube')}")
         
     elif skill == "mercati":
         print(f"[SISTEMA]: Interrogazione feed globali in corso...")
