@@ -60,7 +60,7 @@ class AgentInstallerGUI(ctk.CTk):
         self.install_btn = ctk.CTkButton(self.actions_frame, text="1. Installa Ambiente e Modelli", command=self.start_install_thread, fg_color="#3D85C6")
         self.install_btn.pack(side="left", expand=True, fill="x", padx=5)
 
-        self.start_btn = ctk.CTkButton(self.actions_frame, text="2. Avvia Jarvis Agente", command=self.start_agent_thread, fg_color="green", state="disabled")
+        self.start_btn = ctk.CTkButton(self.actions_frame, text="2. Avvia Jarvis Agente", command=self.start_agent_thread, fg_color="gray", state="disabled")
         self.start_btn.pack(side="right", expand=True, fill="x", padx=5)
 
     def check_ollama_installed(self):
