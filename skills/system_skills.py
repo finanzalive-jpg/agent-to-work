@@ -10,7 +10,6 @@ def esegui_crea_cartella(nome_cartella):
     
     home = os.path.expanduser("~")
     percorso_desktop = os.path.join(home, "Desktop")
-    
     percorso_finale = os.path.join(percorso_desktop, nome_cartella)
     
     try:
@@ -30,13 +29,13 @@ def esegui_rinomina_cartella(vecchio_nome, nuovo_nome):
     home = os.path.expanduser("~")
     percorso_desktop = os.path.join(home, "Desktop")
     
-    percorso_vecchio = os.path.join(percorso_desktop, vecchio_nome)
-    percorso_nuovo = os.path.join(percorso_desktop, nuovo_nome)
+    percorso_vecchio = os.path.join(percorso_desktop, vecchio_nome.strip())
+    percorso_nuovo = os.path.join(percorso_desktop, nuovo_nome.strip())
     
     try:
         if os.path.exists(percorso_vecchio):
             if not os.path.exists(percorso_nuovo):
-                os.rename(percorso_vecchio, percorso_new)
+                os.rename(percorso_vecchio, percorso_nuovo) # <--- FIX: Variabile corretta
                 return f"Ok, ho rinominato la cartella '{vecchio_nome}' in '{nuovo_nome}' sul tuo Desktop."
             else:
                 return f"Impossibile rinominare: esiste già una cartella chiamata '{nuovo_nome}' sul Desktop."
@@ -49,10 +48,10 @@ def esegui_apri_browser(query_ricerca=None, piattaforma="google"):
     """Apre il browser predefinito con l'URL di ricerca corretto."""
     if piattaforma == "youtube" and query_ricerca:
         query_enc = urllib.parse.quote(query_ricerca.strip())
-        url = f"https://youtube.com{query_enc}" # <--- FIX: URL CORRETTO PER YOUTUBE
+        url = f"https://youtube.com{query_enc}"
     elif query_ricerca:
         query_enc = urllib.parse.quote(query_ricerca.strip())
-        url = f"https://google.com{query_enc}" # <--- FIX: URL CORRETTO PER GOOGLE
+        url = f"https://google.com{query_enc}"
     else:
         url = "https://google.com"
 
