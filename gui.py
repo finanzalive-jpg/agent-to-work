@@ -96,9 +96,9 @@ class AgentInstallerGUI(ctk.CTk):
         self.log("[-] Avvio installazione dei componenti Python richiesti...")
         try:
             # Aggiorna pip e installa requirements
-            subprocess.run([sys.executable, "-m", "pip", "install", "--upgrade", "pip"], stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
+            subprocess.run([sys.executable, "-m", "pip", "install", "--upgrade", "pip"], stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, encoding="utf-8")
             if os.path.exists("requirements.txt"):
-                subprocess.run([sys.executable, "-m", "pip", "install", "-r", "requirements.txt"], stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
+                subprocess.run([sys.executable, "-m", "pip", "install", "-r", "requirements.txt"], stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, encoding="utf-8")
             
             self.log("[✅] Dipendenze Python installate con successo.")
             
@@ -113,13 +113,13 @@ class AgentInstallerGUI(ctk.CTk):
                     self.log("[-] Tentativo di sincronizzazione con Ollama...")
                     subprocess.Popen(["ollama", "serve"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, env=env, creationflags=subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0)
                 
-                process = subprocess.Popen([sys.executable, "install.py"], stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, env=env)
+                process = subprocess.Popen([sys.executable, "install.py"], stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, env=env, encoding="utf-8")
                 for line in iter(process.stdout.readline, ''):
                     self.log(line.strip())
                 process.wait()
                 
             self.log("[🎉] Setup terminato! Ora puoi avviare l'agente locale.")
-            self.start_btn.configure(state="normal")
+            self.start_btn.configure(state="normal", fg_color="green", hover_color="darkgreen")
         except Exception as e:
             self.log(f"[❌] Errore durante l'installazione: {str(e)}")
             self.install_btn.configure(state="normal")
@@ -132,7 +132,7 @@ class AgentInstallerGUI(ctk.CTk):
         self.log("[🚀] Avvio di Jarvis in corso...")
         if not os.path.exists("jarvis.py"):
             self.log("[❌] Errore: Impossibile trovare jarvis.py")
-            self.start_btn.configure(state="normal")
+            self.start_btn.configure(state="normal", fg_color="green")
             return
             
         env = os.environ.copy()
@@ -146,6 +146,7 @@ class AgentInstallerGUI(ctk.CTk):
                 text=True,
                 bufsize=1,
                 env=env,
+                encoding="utf-8",
                 creationflags=subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0
             )
             for line in iter(process.stdout.readline, ''):
@@ -153,7 +154,7 @@ class AgentInstallerGUI(ctk.CTk):
             process.wait()
         except Exception as e:
             self.log(f"[❌] Errore esecuzione Agente: {str(e)}")
-        self.start_btn.configure(state="normal")
+        self.start_btn.configure(state="normal", fg_color="green")
 
 if __name__ == "__main__":
     app = AgentInstallerGUI()
