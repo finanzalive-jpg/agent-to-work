@@ -13,12 +13,12 @@ class AgentInstallerGUI(ctk.CTk):
     def __init__(self):
         super().__init__()
         self.title("Local AI Agent - Installatore e Dashboard")
-        self.geometry("750x620") # Aumentata l'altezza per ospitare la barra di input
+        self.geometry("750x620")
         
         self.ollama_installed = self.check_ollama_installed()
         self.ram_gb = round(psutil.virtual_memory().total / (1024**3))
         self.profile, self.recommended_model = self.detect_hardware()
-        self.agent_process = None # Tiene traccia del processo jarvis
+        self.agent_process = None
 
         # Titolo
         self.title_label = ctk.CTkLabel(self, text="AGENT-TO-WORK: SETUP AUTOMATICO", font=ctk.CTkFont(size=22, weight="bold"))
@@ -47,7 +47,7 @@ class AgentInstallerGUI(ctk.CTk):
         self.textbox.pack(pady=5, padx=40)
         self.textbox.configure(state="disabled")
 
-        # BARRA DI INPUT UTENTE (Risolve il problema dell'EOF)
+        # Barra di input utente
         self.input_frame = ctk.CTkFrame(self, fg_color="transparent")
         self.input_frame.pack(pady=5, padx=40, fill="x")
         
@@ -100,9 +100,9 @@ class AgentInstallerGUI(ctk.CTk):
     def run_installation(self):
         self.log("[-] Avvio installazione componenti...")
         try:
-            subprocess.run([sys.executable, "-m", "pip", "install", "--upgrade", "pip"], stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, encoding="utf-8")
+            subprocess.run([sys.executable, "-m", "pip", "install", "--upgrade", "pip"], stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, encoding="utf-8", errors="replace")
             if os.path.exists("requirements.txt"):
-                subprocess.run([sys.executable, "-m", "pip", "install", "-r", "requirements.txt"], stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, encoding="utf-8")
+                subprocess.run([sys.executable, "-m", "pip", "install", "-r", "requirements.txt"], stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, encoding="utf-8", errors="replace")
             self.log("[✅] Dipendenze installate.")
             
             if os.path.exists("install.py"):
@@ -112,7 +112,7 @@ class AgentInstallerGUI(ctk.CTk):
                 if self.ollama_installed:
                     subprocess.Popen(["ollama", "serve"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, env=env, creationflags=subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0)
                 
-                process = subprocess.Popen([sys.executable, "install.py"], stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, env=env, encoding="utf-8")
+                process = subprocess.Popen([sys.executable, "install.py"], stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, env=env, encoding="utf-8", errors="replace")
                 for line in iter(process.stdout.readline, ''):
                     self.log(line.strip())
                 process.wait()
@@ -148,12 +148,12 @@ class AgentInstallerGUI(ctk.CTk):
                 bufsize=1,
                 env=env,
                 encoding="utf-8",
+                errors="replace",
                 creationflags=subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0
             )
             
             for line in iter(self.agent_process.stdout.readline, ''):
                 cleaned_line = line.strip()
-                # MODIFICA APPLICATA: Salta le righe vuote e i prompt duplicati inviati dal terminale di jarvis
                 if cleaned_line and cleaned_line != "Tu:":
                     self.log(cleaned_line)
                 
@@ -166,10 +166,9 @@ class AgentInstallerGUI(ctk.CTk):
         self.start_btn.configure(state="normal", fg_color="green")
 
     def send_command_to_agent(self):
-        """Prende il testo scritto nella casella e lo passa all'input() di jarvis.py"""
         command = self.user_entry.get().strip()
         if command and self.agent_process and self.agent_process.poll() is None:
-            self.log(f"Tu: {command}") # Visualizza cosa hai scritto nel log
+            self.log(f"Tu: {command}")
             try:
                 self.agent_process.stdin.write(command + "\n")
                 self.agent_process.stdin.flush()
