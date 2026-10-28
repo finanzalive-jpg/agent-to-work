@@ -70,7 +70,7 @@ def main():
     profilo = select_model_profile(ram)
     print(f"[+] Profilo Assegnato: {profilo['profile']}")
     print(f"[*] Modello IA Scelto: {profilo['model']}")
-    print(f"\n👉 {profilo['msg']}\n")
+    print(f"\n[!] {profilo['msg']}\n")
     
     if sys.platform.startswith('linux'):
         install_ollama_linux()
@@ -79,7 +79,10 @@ def main():
         
     print(f"[-] Download del modello {profilo['model']} (Attendere)...")
     try:
-        subprocess.run(["ollama", "pull", profilo["model"]], check=True)
+        # Passiamo le variabili d'ambiente forzando l'host corretto su Windows
+        env = os.environ.copy()
+        env["OLLAMA_HOST"] = "127.0.0.1:11434"
+        subprocess.run(["ollama", "pull", profilo["model"]], env=env, check=True)
         print("[+] Modello scaricato con successo.")
     except Exception as e:
         print(f"[X] Errore durante il download del modello: {e}")
