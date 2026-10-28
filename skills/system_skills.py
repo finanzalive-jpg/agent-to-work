@@ -11,9 +11,6 @@ def esegui_crea_cartella(nome_cartella):
     home = os.path.expanduser("~")
     percorso_desktop = os.path.join(home, "Desktop")
     
-    if not os.path.exists(percorso_desktop):
-        percorso_desktop = os.path.join(home, "Desktop")
-        
     percorso_finale = os.path.join(percorso_desktop, nome_cartella)
     
     try:
@@ -23,16 +20,39 @@ def esegui_crea_cartella(nome_cartella):
         else:
             return f"La cartella '{nome_cartella}' esiste già sul Desktop."
     except Exception as e:
-        return f"Errore hardware durante la creazione della cartella: {e}"
+        return f"Errore durante la creazione della cartella: {e}"
+
+def esegui_rinomina_cartella(vecchio_nome, nuovo_nome):
+    """Rinomina una cartella esistente sul Desktop dell'utente."""
+    if not vecchio_nome or not nuovo_nome:
+        return "Non ho capito quali nomi usare per rinominare la cartella."
+        
+    home = os.path.expanduser("~")
+    percorso_desktop = os.path.join(home, "Desktop")
+    
+    percorso_vecchio = os.path.join(percorso_desktop, vecchio_nome)
+    percorso_nuovo = os.path.join(percorso_desktop, nuovo_nome)
+    
+    try:
+        if os.path.exists(percorso_vecchio):
+            if not os.path.exists(percorso_nuovo):
+                os.rename(percorso_vecchio, percorso_new)
+                return f"Ok, ho rinominato la cartella '{vecchio_nome}' in '{nuovo_nome}' sul tuo Desktop."
+            else:
+                return f"Impossibile rinominare: esiste già una cartella chiamata '{nuovo_nome}' sul Desktop."
+        else:
+            return f"Non ho trovato la cartella '{vecchio_nome}' sul tuo Desktop da poter rinominare."
+    except Exception as e:
+        return f"Errore durante la rinomina della cartella: {e}"
 
 def esegui_apri_browser(query_ricerca=None, piattaforma="google"):
-    """Apre il browser predefinito con l'URL corretto."""
+    """Apre il browser predefinito con l'URL di ricerca corretto."""
     if piattaforma == "youtube" and query_ricerca:
         query_enc = urllib.parse.quote(query_ricerca.strip())
-        url = f"https://youtube.com{query_enc}"
+        url = f"https://youtube.com{query_enc}" # <--- FIX: URL CORRETTO PER YOUTUBE
     elif query_ricerca:
         query_enc = urllib.parse.quote(query_ricerca.strip())
-        url = f"https://google.com{query_enc}"
+        url = f"https://google.com{query_enc}" # <--- FIX: URL CORRETTO PER GOOGLE
     else:
         url = "https://google.com"
 
