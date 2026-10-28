@@ -139,7 +139,6 @@ class AgentInstallerGUI(ctk.CTk):
         env["OLLAMA_HOST"] = "127.0.0.1:11434"
         
         try:
-            # Usiamo stdin=subprocess.PIPE per permetterci di iniettare testo nello script python
             self.agent_process = subprocess.Popen(
                 [sys.executable, "jarvis.py"],
                 stdin=subprocess.PIPE,
@@ -153,7 +152,10 @@ class AgentInstallerGUI(ctk.CTk):
             )
             
             for line in iter(self.agent_process.stdout.readline, ''):
-                self.log(line.strip())
+                cleaned_line = line.strip()
+                # MODIFICA APPLICATA: Salta le righe vuote e i prompt duplicati inviati dal terminale di jarvis
+                if cleaned_line and cleaned_line != "Tu:":
+                    self.log(cleaned_line)
                 
             self.agent_process.wait()
         except Exception as e:
