@@ -9,13 +9,13 @@ import xml.etree.ElementTree as ET
 # 1. SCANSIONE DINAMICA DELLE SKILL PRESENTI NELLA CARTELLA
 def recupera_skills_locali():
     cartella = os.path.join(os.path.dirname(__file__), "skills")
-    # FIX: Aggiunta la skill 'rinomina_cartella' all'elenco delle competenze native riconosciute
+    # Skill fisse di base riconosciute dall'orchestratore
     skills_rilevate = ["crea_cartella", "rinomina_cartella", "crea_preventivo", "meteo", "cerca_video", "cerca_musica", "mercati", "chiama_contatto", "conversazione_generica", "nessuna"]
     
     if os.path.exists(cartella):
         for file in os.listdir(cartella):
             if file.endswith(".py") and not file.startswith("__"):
-                nome_skill = file[:-3].replace("_skills", "")  # Rimuove il suffisso se presente
+                nome_skill = file[:-3].replace("_skills", "")
                 if nome_skill not in skills_rilevate:
                     skills_rilevate.append(nome_skill)
     return skills_rilevate
@@ -36,7 +36,6 @@ CONTESTO = config.get("num_ctx", 2048)
 
 # Importiamo i moduli di Jarvis dalle sotto-cartelle
 try:
-    # FIX: Importazione della nuova funzione esegui_rinomina_cartella e della gestione browser corretta
     from skills.system_skills import esegui_crea_cartella, esegui_rinomina_cartella, esegui_apri_browser
     from skills.office_skills import esegui_crea_preventivo_word
 except ImportError as e:
@@ -56,8 +55,8 @@ SCHEMA_RIGIDO = {
             "type": "object",
             "properties": {
                 "target": {"type": "string"},
-                "vecchio_nome": {"type": "string"}, # Parametro per rinomina
-                "nuovo_nome": {"type": "string"},   # Parametro per rinomina
+                "vecchio_nome": {"type": "string"},
+                "nuovo_nome": {"type": "string"},
                 "dati_preventivo": {
                     "type": "object",
                     "properties": {
@@ -75,13 +74,12 @@ SCHEMA_RIGIDO = {
 }
 
 # 4. System Prompt per la blindatura logica del modello
-# FIX: Aggiornate le istruzioni operative fornendo all'LLM le regole per la rinomina cartelle
 SYSTEM_PROMPT = (
     f"Tu sei il core esecutivo di AGENT-TO-WORK, un orchestratore di skill locale. L'utente ti ha configurato con il nome di attivazione: '{NOME_ASSISTENTE}'. "
     f"Regole: 1. Comportati SOLO come un Intent Classifier. 2. Se l'utente chiede l'andamento di borse, indici azionari o mercati, usa 'mercati'. "
-    f"3. Se chiede un video, usa 'cerca_video' e inserisci l'oggetto da cercare in parametri.target. "
+    f"3. Se chiede un video o brano su youtube, usa 'cerca_video' e inserisci l'oggetto da cercare in parametri.target. "
     f"4. Se chiede di creare una cartella, usa 'crea_cartella' e inserisci il nome in parametri.target. "
-    f"5. Se chiede di rinominare o cambiare nome a una cartella esistente sul desktop, usa 'rinomina_cartella' ed estrai con precisione il vecchio nome in parametri.vecchio_nome e il nuovo nome in file parametri.nuovo_nome. "
+    f"5. Se chiede di rinominare o cambiare nome a una cartella sul desktop, usa 'rinomina_cartella' ed estrai il vecchio nome in parametri.vecchio_nome e il nuovo nome in parametri.nuovo_nome. "
     f"Elenco completo delle skill permesse: {', '.join(SKILLS_DISPONIBILI)}."
 )
 
@@ -163,18 +161,16 @@ def esecutore_comandi(json_ricevuto):
     
     print(f"\n[AVATAR]: {json_ricevuto.get('risposta_vocale')}")
 
-    # ROUTING DELLE AZIONI
+    # ROUTING DELLE AZIONI CORRETTO
     if skill == "crea_cartella" and target:
         print(f"[SISTEMA]: {esegui_crea_cartella(target)}")
         
     elif skill == "rinomina_cartella":
-        # FIX: Instradamento logico per la rinomina con parametri puliti
         print(f"[SISTEMA]: {esegui_rinomina_cartella(vecchio_nome, nuovo_nome)}")
         
     elif skill == "cerca_video" and target:
-        # FIX: Rimossa la sovrascrittura corrotta della stringa URL.
-        # Viene chiamata direttamente la skill centralizzata preposta all'apertura corretta del browser
         query_pulita = target.lower().replace("://youtube.com", "").replace("youtube.com", "").replace("comauto", "auto").replace("su youtube", "").replace("su internet", "").strip()
+        # FIX: Chiama la funzione corretta passando la query ripulita
         print(f"[SISTEMA]: {esegui_apri_browser(query_ricerca=query_pulita, piattaforma='youtube')}")
         
     elif skill == "mercati":
