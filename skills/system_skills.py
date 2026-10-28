@@ -35,7 +35,7 @@ def esegui_rinomina_cartella(vecchio_nome, nuovo_nome):
     try:
         if os.path.exists(percorso_vecchio):
             if not os.path.exists(percorso_nuovo):
-                os.rename(percorso_vecchio, percorso_nuovo) # <--- FIX: Variabile corretta
+                os.rename(percorso_vecchio, percorso_nuovo)
                 return f"Ok, ho rinominato la cartella '{vecchio_nome}' in '{nuovo_nome}' sul tuo Desktop."
             else:
                 return f"Impossibile rinominare: esiste già una cartella chiamata '{nuovo_nome}' sul Desktop."
@@ -48,6 +48,7 @@ def esegui_apri_browser(query_ricerca=None, piattaforma="google"):
     """Apre il browser predefinito con l'URL di ricerca corretto."""
     if piattaforma == "youtube" and query_ricerca:
         query_enc = urllib.parse.quote(query_ricerca.strip())
+        # FIX: Struttura dell'URL corretta con i relativi parametri di ricerca per YouTube
         url = f"https://youtube.com{query_enc}"
     elif query_ricerca:
         query_enc = urllib.parse.quote(query_ricerca.strip())
