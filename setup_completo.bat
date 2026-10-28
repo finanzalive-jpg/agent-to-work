@@ -23,10 +23,9 @@ python -m pip install --upgrade pip
 pip install -r requirements.txt
 pip install customtkinter
 
-echo.
 echo [OK] Installazione completata con successo!
 echo E stato creato il file 'Avvia_Interfaccia.bat' per avviare l'agente senza terminale.
-echo @off > ../Avvia_Interfaccia.bat
-echo start venv\Scripts\pythonw.exe gui.py >> ../Avvia_Interfaccia.bat
-
+echo @echo off > Avvia_Interfaccia.bat
+echo start venv\Scripts\pythonw.exe gui.py >> Avvia_Interfaccia.bat
 pause
+
