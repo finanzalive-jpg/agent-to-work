@@ -24,7 +24,7 @@ def select_model_profile(ram_gb):
             "profile": "Basic - Hardware limitato",
             "model": "llama3.2:1b-instruct-q4_K_M",
             "num_ctx": 1024,
-            "msg": "Modalità Basic. Solo comandi vocali diretti e veloci."
+            "msg": "Modalita Basic. Solo comandi vocali diretti e veloci."
         }
     elif 6 <= ram_gb < 12:
         return {
@@ -79,7 +79,6 @@ def main():
         
     print(f"[-] Download del modello {profilo['model']} (Attendere)...")
     try:
-        # Passiamo le variabili d'ambiente forzando l'host corretto su Windows
         env = os.environ.copy()
         env["OLLAMA_HOST"] = "127.0.0.1:11434"
         subprocess.run(["ollama", "pull", profilo["model"]], env=env, check=True)
