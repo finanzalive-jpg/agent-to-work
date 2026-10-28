@@ -47,11 +47,15 @@ def esegui_rinomina_cartella(vecchio_nome, nuovo_nome):
 def esegui_apri_browser(query_ricerca=None, piattaforma="google"):
     """Apre il browser predefinito con l'URL di ricerca corretto."""
     if piattaforma == "youtube" and query_ricerca:
-        query_enc = urllib.parse.quote(query_ricerca.strip())
-        # FIX: Struttura dell'URL corretta con i relativi parametri di ricerca per YouTube
+        # FIX DEFINITIVO: Rimuove tentativi di link sporchi generati dall'IA
+        parola_chiave = query_ricerca.replace("https", "").replace("http", "").replace("youtube.com", "").replace("/", "").strip()
+        query_enc = urllib.parse.quote(parola_chiave)
+        # Forza l'indirizzo di ricerca corretto con i parametri di YouTube
         url = f"https://youtube.com{query_enc}"
     elif query_ricerca:
-        query_enc = urllib.parse.quote(query_ricerca.strip())
+        # FIX DEFINITIVO: Rimuove tentativi di link sporchi generati dall'IA per Google
+        parola_chiave = query_ricerca.replace("https", "").replace("http", "").replace("google.com", "").replace("/", "").strip()
+        query_enc = urllib.parse.quote(parola_chiave)
         url = f"https://google.com{query_enc}"
     else:
         url = "https://google.com"
