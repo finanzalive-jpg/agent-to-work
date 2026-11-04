@@ -48,14 +48,24 @@ CITTA_DEFAULT = os.getenv("ATLAS_CITY", "Roma")
 LAT_DEFAULT = float(os.getenv("ATLAS_LAT", "41.90"))
 LON_DEFAULT = float(os.getenv("ATLAS_LON", "12.50"))
 
+# Cervello VELOCE per classificazione intent (JSON corto, serve velocita')
 BRAIN_CFG = {
     "provider": "groq",
     "api_key_env": "GROQ_API_KEY",
     "base_url": os.getenv("GROQ_BASE_URL", "https://api.groq.com/openai/v1"),
-    "model": os.getenv("GROQ_MODEL", "openai/gpt-oss-20b"),
+    "model": os.getenv("GROQ_MODEL_FAST", "meta-llama/llama-4-scout-17b-16e-instruct"),
     "temperature": 0.1,
-    "max_tokens": 250,  # Il JSON intent e' corto, limita per velocita'
+    "max_tokens": 250,
     "stt_model": os.getenv("GROQ_STT_MODEL", "whisper-large-v3-turbo"),
+}
+
+# Cervello SMART per conversazione libera e risposte complesse
+BRAIN_SMART_CFG = {
+    "provider": "groq",
+    "api_key_env": "GROQ_API_KEY",
+    "base_url": os.getenv("GROQ_BASE_URL", "https://api.groq.com/openai/v1"),
+    "model": os.getenv("GROQ_MODEL_SMART", "llama-3.3-70b-versatile"),
+    "temperature": 0.3,
 }
 
 # ======================================================================
@@ -449,7 +459,7 @@ def processa_comando(testo_utente):
                 f"Dai una risposta breve e utile su questo titolo/criptovaluta. "
                 f"Se conosci il ticker, menziona il nome completo. Rispondi in italiano."
             )
-            risposta = brain.chat_libero(prompt_analisi, testo_utente, BRAIN_CFG)
+            risposta = brain.chat_libero(prompt_analisi, testo_utente, BRAIN_SMART_CFG)
             return risposta
         return risposta_modello or "Dimmi quale titolo vuoi analizzare."
 
@@ -463,28 +473,28 @@ def processa_comando(testo_utente):
             "Rispondi con quello che sai, in modo conciso e utile. "
             "Se non sei sicuro, dillo chiaramente."
         )
-        return brain.chat_libero(prompt_web, testo_utente, BRAIN_CFG)
+        return brain.chat_libero(prompt_web, testo_utente, BRAIN_SMART_CFG)
 
     elif skill == "definizione":
         prompt_def = (
             "Sei un'enciclopedia italiana parlante. Dai una definizione chiara e concisa "
             "in 2-3 frasi. Rispondi in italiano."
         )
-        return brain.chat_libero(prompt_def, testo_utente, BRAIN_CFG)
+        return brain.chat_libero(prompt_def, testo_utente, BRAIN_SMART_CFG)
 
     elif skill == "traduci":
         prompt_trad = (
             "Sei un traduttore professionale. Traduci quello che l'utente chiede, "
             "specificando la lingua di partenza e di arrivo. Rispondi in modo chiaro."
         )
-        return brain.chat_libero(prompt_trad, testo_utente, BRAIN_CFG)
+        return brain.chat_libero(prompt_trad, testo_utente, BRAIN_SMART_CFG)
 
     elif skill == "conversazione_generica":
         prompt_conv = (
             f"Sei {NOME_ASSISTENTE.capitalize()}, un assistente vocale italiano simpatico e competente. "
             f"Rispondi in modo naturale, breve e utile. Rispondi in italiano."
         )
-        return brain.chat_libero(prompt_conv, testo_utente, BRAIN_CFG)
+        return brain.chat_libero(prompt_conv, testo_utente, BRAIN_SMART_CFG)
 
     elif skill in SKILLS_PC_ONLY:
         return (
