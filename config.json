@@ -1,0 +1,22 @@
+{
+    "assistant_name": "ATLAS",
+    "detected_ram_gb": 8,
+    "model_in_use": "qwen2.5:3b-instruct-q4_K_M",
+    "num_ctx": 2048,
+    "brain": {
+        "provider": "groq",
+        "model": "openai/gpt-oss-20b",
+        "base_url": "https://api.groq.com/openai/v1",
+        "api_key_env": "GROQ_API_KEY",
+        "temperature": 0.1,
+        "ollama_model": "qwen2.5:3b-instruct-q4_K_M",
+        "ollama_host": "http://127.0.0.1:11434",
+        "num_ctx": 2048
+    },
+    "voce": "it-IT-DiegoNeural",
+    "meteo": {
+        "citta": "Roma",
+        "lat": 41.9,
+        "lon": 12.5
+    }
+}
