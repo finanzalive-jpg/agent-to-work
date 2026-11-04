@@ -1,0 +1,19 @@
+# render.yaml - Configurazione Render per Atlas Cloud
+# Render usa questo file per il deploy automatico
+
+services:
+  - type: web
+    name: atlas-cloud
+    runtime: python
+    buildCommand: pip install -r requirements-cloud.txt
+    startCommand: uvicorn server:app --host 0.0.0.0 --port 10000
+    envVars:
+      - key: GROQ_API_KEY
+        sync: false
+      - key: ATLAS_NAME
+        value: Atlas
+      - key: ATLAS_CITY
+        value: Roma
+      - key: ATLAS_VOICE
+        value: it-IT-DiegoNeural
+    plan: free
