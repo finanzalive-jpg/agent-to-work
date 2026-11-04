@@ -1,569 +1,763 @@
 <!DOCTYPE html>
 <html lang="it">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="theme-color" content="#0a0a0f">
-<title>Atlas</title>
+<meta name="theme-color" content="#030712">
+<title>Atlas Brain</title>
 <link rel="manifest" href="/static/manifest.json">
 <style>
-  * { margin: 0; padding: 0; box-sizing: border-box; }
-  body {
-    background: #0a0a0f;
-    color: #e0e0e0;
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-    height: 100dvh;
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-    -webkit-user-select: none;
-    user-select: none;
-  }
+*{margin:0;padding:0;box-sizing:border-box}
+:root{--bg:#030712;--panel:rgba(8,14,28,.88);--line:rgba(80,140,200,.18);--fg:#dde7f6;--fg2:#7a9cc4;--accent:#4af0ff;color-scheme:dark}
+html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--fg);font-family:'Segoe UI',system-ui,sans-serif;touch-action:none}
+canvas{position:fixed;inset:0;width:100%;height:100%;cursor:grab}
+canvas.grabbing{cursor:grabbing}
+#hud{position:fixed;top:16px;left:20px;pointer-events:none;z-index:2}
+#hud h1{font-size:22px;font-weight:700;letter-spacing:.18em;color:#eaf5ff;text-shadow:0 0 20px rgba(74,240,255,.35)}
+#hud .sub{font-size:11px;color:var(--fg2);letter-spacing:.08em;margin-top:2px}
+#stats{position:fixed;top:16px;right:20px;text-align:right;z-index:20;pointer-events:auto;cursor:pointer;user-select:none}
+#stats .num{font-size:28px;font-weight:700;color:var(--accent);text-shadow:0 0 16px rgba(74,240,255,.4);font-variant-numeric:tabular-nums}
+#stats .lbl{font-size:10px;letter-spacing:.2em;color:var(--fg2);text-transform:uppercase}
+#skill-dropdown{display:none;position:absolute;top:100%;right:0;margin-top:8px;width:260px;max-height:55vh;overflow-y:auto;background:rgba(8,14,28,.92);border:1px solid var(--line);border-radius:12px;padding:8px 0;backdrop-filter:blur(14px);text-align:left}
+#skill-dropdown.open{display:block}
+#skill-dropdown .sk-item{padding:7px 16px;font-size:12px;color:var(--fg);letter-spacing:.04em;border-bottom:1px solid rgba(80,140,200,.08);display:flex;align-items:center;gap:8px;cursor:default;transition:background .15s}
+#skill-dropdown .sk-item:hover{background:rgba(74,240,255,.08)}
+#skill-dropdown .sk-item:last-child{border-bottom:none}
+#skill-dropdown .sk-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+#skill-dropdown .sk-head{padding:8px 16px 6px;font-size:10px;letter-spacing:.15em;color:var(--fg2);text-transform:uppercase;font-weight:600}
+.tooltip{position:fixed;pointer-events:none;z-index:3;background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:6px 12px;font-size:12px;color:var(--fg);backdrop-filter:blur(8px);display:none;white-space:nowrap;transform:translate(-50%,-120%)}
 
-  /* --- Cervello 3D --- */
-  #brain-container {
-    flex: 1;
-    position: relative;
-    min-height: 200px;
-  }
-  #brain-canvas {
-    width: 100%;
-    height: 100%;
-    display: block;
-  }
+/* --- Pannello chat + input testo (overlay) --- */
+#chat-panel{position:fixed;bottom:0;left:0;right:0;z-index:10;pointer-events:none;display:flex;flex-direction:column;align-items:center;padding-bottom:max(16px,env(safe-area-inset-bottom));gap:8px;max-height:55vh}
+#chat-log{width:min(520px,90vw);max-height:180px;overflow-y:auto;pointer-events:auto;background:rgba(8,14,28,.82);border:1px solid var(--line);border-radius:14px;padding:12px 16px;backdrop-filter:blur(12px);display:none;font-size:13px;line-height:1.5}
+#chat-log .msg{margin-bottom:8px}
+#chat-log .msg .who{font-weight:600;font-size:11px;letter-spacing:.08em;text-transform:uppercase}
+#chat-log .msg.tu .who{color:#22c55e}
+#chat-log .msg.ai .who{color:var(--accent)}
+#chat-log .msg .txt{color:var(--fg);margin-top:2px}
+#input-bar{width:min(520px,90vw);pointer-events:auto;display:none;flex-direction:row;gap:8px;align-items:center}
+#input-bar input{flex:1;height:44px;border-radius:12px;border:1px solid var(--line);background:rgba(8,14,28,.88);color:var(--fg);padding:0 16px;font-size:14px;outline:none;backdrop-filter:blur(12px)}
+#input-bar input:focus{border-color:var(--accent)}
+#input-bar button{height:44px;padding:0 18px;border-radius:12px;border:1px solid var(--line);background:rgba(74,240,255,.12);color:var(--accent);font-size:13px;font-weight:600;cursor:pointer;letter-spacing:.06em;white-space:nowrap}
+#input-bar button:hover{background:rgba(74,240,255,.25)}
 
-  /* --- Status bar --- */
-  #status-bar {
-    text-align: center;
-    padding: 6px 16px;
-    font-size: 13px;
-    color: #888;
-    background: rgba(10,10,15,0.9);
-    min-height: 28px;
-  }
-  #status-bar.thinking { color: #4fc3f7; }
-  #status-bar.speaking { color: #81c784; }
-  #status-bar.recording { color: #ef5350; }
+/* --- Barra controlli in basso a destra --- */
+#ctrl-bar{position:fixed;bottom:max(20px,env(safe-area-inset-bottom));right:20px;display:flex;gap:8px;z-index:12;pointer-events:auto}
+#ctrl-bar button{width:44px;height:44px;border-radius:50%;border:1px solid var(--line);background:var(--panel);color:var(--fg);font-size:18px;cursor:pointer;backdrop-filter:blur(6px);display:flex;align-items:center;justify-content:center;transition:border-color .2s,background .2s}
+#ctrl-bar button:hover{border-color:rgba(74,240,255,.5)}
+#ctrl-bar button.active{background:rgba(74,240,255,.15);border-color:var(--accent);color:var(--accent)}
+#ctrl-bar button.recording{background:rgba(198,40,40,.4)!important;border-color:#ef5350!important;color:#ef5350!important;animation:recPulse 1s infinite}
+@keyframes recPulse{0%,100%{box-shadow:0 0 0 0 rgba(198,40,40,.4)}50%{box-shadow:0 0 0 10px rgba(198,40,40,0)}}
 
-  /* --- Chat area --- */
-  #chat-area {
-    max-height: 35dvh;
-    overflow-y: auto;
-    padding: 8px 16px;
-    background: rgba(15,15,20,0.95);
-    scrollbar-width: thin;
-    scrollbar-color: #333 transparent;
-  }
-  .msg {
-    margin: 6px 0;
-    padding: 10px 14px;
-    border-radius: 16px;
-    font-size: 14px;
-    line-height: 1.5;
-    max-width: 85%;
-    word-wrap: break-word;
-    animation: fadeIn 0.3s ease;
-  }
-  @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
-  .msg.user {
-    background: #1a3a5c;
-    color: #ddd;
-    margin-left: auto;
-    border-bottom-right-radius: 4px;
-  }
-  .msg.bot {
-    background: #1e1e2e;
-    color: #ccc;
-    border-bottom-left-radius: 4px;
-  }
-
-  /* --- Barra input --- */
-  #input-bar {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 10px 12px;
-    background: #111118;
-    border-top: 1px solid #222;
-  }
-  #input-bar input {
-    flex: 1;
-    background: #1a1a24;
-    border: 1px solid #333;
-    border-radius: 24px;
-    padding: 10px 16px;
-    color: #e0e0e0;
-    font-size: 15px;
-    outline: none;
-  }
-  #input-bar input:focus { border-color: #4fc3f7; }
-  #input-bar input::placeholder { color: #555; }
-
-  .btn {
-    width: 44px;
-    height: 44px;
-    border-radius: 50%;
-    border: none;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    transition: all 0.2s;
-    flex-shrink: 0;
-  }
-  #btn-send {
-    background: #2196f3;
-    color: white;
-  }
-  #btn-send:active { background: #1976d2; }
-
-  #btn-mic {
-    background: #333;
-    color: #ccc;
-    position: relative;
-  }
-  #btn-mic.recording {
-    background: #c62828;
-    color: white;
-    animation: pulse 1s infinite;
-  }
-  @keyframes pulse {
-    0%, 100% { box-shadow: 0 0 0 0 rgba(198,40,40,0.5); }
-    50% { box-shadow: 0 0 0 12px rgba(198,40,40,0); }
-  }
-  #btn-mic svg, #btn-send svg { width: 22px; height: 22px; }
-
-  /* Safe area per iPhone */
-  #input-bar { padding-bottom: max(10px, env(safe-area-inset-bottom)); }
+/* --- Indicatore stato voce in basso a sinistra --- */
+#voice-status{position:fixed;bottom:max(20px,env(safe-area-inset-bottom));left:20px;display:flex;align-items:center;gap:10px;z-index:12;pointer-events:none}
+#voice-dot{width:12px;height:12px;border-radius:50%;background:#2563eb;box-shadow:0 0 8px rgba(37,99,235,.5);transition:background .3s,box-shadow .3s}
+#voice-dot.ascolto{background:#22c55e;box-shadow:0 0 12px rgba(34,197,94,.6);animation:vPulse 1s infinite}
+#voice-dot.pensiero{background:#f59e0b;box-shadow:0 0 12px rgba(245,158,11,.6);animation:vPulse .7s infinite}
+#voice-dot.parlo{background:#a855f7;box-shadow:0 0 12px rgba(168,85,247,.6);animation:vPulse .5s infinite}
+@keyframes vPulse{0%,100%{transform:scale(1)}50%{transform:scale(1.4)}}
+#voice-label{font-size:12px;color:var(--fg2);letter-spacing:.08em}
 </style>
 </head>
 <body>
+<canvas id="c"></canvas>
+<div id="hud"><h1>ATLAS</h1><div class="sub" id="status-text">Connessione...</div></div>
+<div id="stats" onclick="atlas.toggleSkills()">
+  <div class="num" id="n-count">0</div>
+  <div class="lbl">Skill Attive &#9662;</div>
+  <div id="skill-dropdown"></div>
+</div>
+<div class="tooltip" id="tip"></div>
 
-<div id="brain-container">
-  <canvas id="brain-canvas"></canvas>
+<!-- Indicatore stato voce -->
+<div id="voice-status">
+  <div id="voice-dot"></div>
+  <span id="voice-label">Connessione...</span>
 </div>
 
-<div id="status-bar">Connessione...</div>
-
-<div id="chat-area"></div>
-
-<div id="input-bar">
-  <button id="btn-mic" class="btn" title="Tieni premuto per parlare">
-    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3zm-1-9c0-.55.45-1 1-1s1 .45 1 1v6c0 .55-.45 1-1 1s-1-.45-1-1V5z"/><path d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"/></svg>
-  </button>
-  <input type="text" id="input-text" placeholder="Scrivi un messaggio..." autocomplete="off">
-  <button id="btn-send" class="btn" title="Invia">
-    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
-  </button>
+<!-- Pannello chat + input -->
+<div id="chat-panel">
+  <div id="chat-log"></div>
+  <div id="input-bar">
+    <input type="text" id="txt-input" placeholder="Scrivi un comando..." autocomplete="off">
+    <button id="btn-send" onclick="atlas.sendText()">Invia</button>
+  </div>
 </div>
 
-<!-- Three.js r128 per il cervello 3D -->
+<!-- Controlli -->
+<div id="ctrl-bar">
+  <button id="btn-kb" title="Scrivi" onclick="atlas.toggleInput()">&#9000;</button>
+  <button id="btn-mic-toggle" title="Premi per parlare" onclick="atlas.toggleMic()">&#127908;</button>
+  <button id="btn-stop" title="Ferma voce" onclick="atlas.stopVoice()" style="opacity:0.3">&#9209;</button>
+  <button id="btn-fs" title="Schermo intero" onclick="atlas.toggleFullscreen()">&#9974;</button>
+</div>
+
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-
 <script>
-// ======================================================================
-// CERVELLO 3D (Three.js) — versione semplificata per mobile
-// ======================================================================
-const canvas = document.getElementById('brain-canvas');
-const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
-renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-renderer.setClearColor(0x000000, 0);
-
-const scene = new THREE.Scene();
-const camera = new THREE.PerspectiveCamera(60, 1, 0.1, 100);
-camera.position.set(0, 0, 3.5);
-
-// Luci
-scene.add(new THREE.AmbientLight(0x334455, 0.5));
-const pointLight = new THREE.PointLight(0x4fc3f7, 1.5, 10);
-pointLight.position.set(2, 2, 3);
-scene.add(pointLight);
-
-// Cervello: sfera con vertex displacement
-const brainGeo = new THREE.IcosahedronGeometry(1.2, 5);
-const brainMat = new THREE.MeshPhongMaterial({
-  color: 0x1a2744,
-  emissive: 0x0d1b2a,
-  shininess: 40,
-  wireframe: false,
-  transparent: true,
-  opacity: 0.85,
-});
-const brain = new THREE.Mesh(brainGeo, brainMat);
+(function(){
+"use strict";
+const cv=document.getElementById('c');
+const renderer=new THREE.WebGLRenderer({canvas:cv,antialias:true,alpha:false});
+renderer.setPixelRatio(Math.min(2,devicePixelRatio));
+renderer.setClearColor(0x030712,1);
+const scene=new THREE.Scene();
+const camera=new THREE.PerspectiveCamera(52,1,1,2200);
+camera.position.set(0,-60,520);
+const brain=new THREE.Group();
 scene.add(brain);
 
-// Glow wireframe
-const wireMat = new THREE.MeshBasicMaterial({
-  color: 0x4fc3f7,
-  wireframe: true,
-  transparent: true,
-  opacity: 0.08,
+// ---------- PALETTE ----------
+const COLORS=[
+  0x3da8ff, 0x6b5cff, 0x4af0ff, 0xff5fa0, 0x5bffb5,
+  0xffc84a, 0x9b6bff, 0xff7b4a, 0x4affe0, 0xc678ff,
+  0x5a9eff, 0xff4a6b, 0x78e08f, 0xffb347, 0x5ce1e6,
+];
+
+// ---------- SKILL ----------
+const SKILL_LIST=[
+  "Notiziario","Quotazione","Analisi Mercato","Notizie","Meteo",
+  "Apri Sito","Volume","Screenshot","Blocca PC","Spegni PC",
+  "Riavvia PC","WhatsApp","Crea Excel","Crea Word","Crea PDF",
+  "Note","Blocco Note","Calendario","Google Calendar","Todo",
+  "Promemoria","Timer","Rubrica","IVA","Percentuale",
+  "Calcolo","Cambio Valuta","Cerca Web","Definizione","Riassumi",
+  "Mappa","Crea Cartella","Rinomina","Apri Programma","Apri Cartella",
+  "Cerca File","Apri File","Preventivo","Chat Libera","Briefing",
+  "Azioni Excel","Formula Excel","Formato Excel","Salva Contatto","Trova Contatto",
+];
+
+// ================================================================
+// GEOMETRIA CERVELLO - SMOOTH
+// ================================================================
+const RX=130,RY=105,RZ=118;
+
+function smoothNoise(x,y,z){
+  const s1=Math.sin(x*1.7+y*2.3)*Math.cos(z*1.9+x*0.7);
+  const s2=Math.sin(y*2.1+z*1.3)*Math.cos(x*2.5+z*0.5);
+  const s3=Math.sin(z*1.5+x*2.7)*Math.cos(y*1.1+x*1.3);
+  return (s1+s2+s3)/3.0;
+}
+
+function brainPoint(i,total){
+  const gold=Math.PI*(3-Math.sqrt(5));
+  const y=1-(i/Math.max(1,total-1))*2;
+  const r=Math.sqrt(Math.max(0,1-y*y));
+  const th=gold*i;
+  let x=Math.cos(th)*r, z=Math.sin(th)*r;
+  x+=x>0?0.08:-0.08;
+  const sulcus=1.0 - Math.exp(-Math.abs(x)*80)*0.08;
+  const wave=1.0 + smoothNoise(x*4,y*4,z*4)*0.06;
+  return new THREE.Vector3(x*RX*sulcus*wave, y*RY*sulcus*wave, z*RZ*sulcus*wave);
+}
+
+// ---------- GLOW TEXTURE ----------
+function makeGlow(size){
+  const c=document.createElement('canvas');c.width=c.height=size||64;
+  const g=c.getContext('2d');
+  const gr=g.createRadialGradient(size/2,size/2,0,size/2,size/2,size/2);
+  gr.addColorStop(0,'rgba(255,255,255,1)');
+  gr.addColorStop(0.15,'rgba(255,255,255,.9)');
+  gr.addColorStop(0.5,'rgba(255,255,255,.3)');
+  gr.addColorStop(1,'rgba(255,255,255,0)');
+  g.fillStyle=gr;g.fillRect(0,0,size,size);
+  return new THREE.CanvasTexture(c);
+}
+const GLOW=makeGlow(64);
+const GLOW_SOFT=makeGlow(128);
+
+// ---------- NEBULOSA ----------
+(function nebula(){
+  const N=2200;
+  const pos=new Float32Array(N*3),col=new Float32Array(N*3),sizes=new Float32Array(N);
+  for(let i=0;i<N;i++){
+    const u=Math.random(),v=Math.random();
+    const th=Math.acos(2*v-1),ph=2*Math.PI*u;
+    const r=Math.cbrt(Math.random());
+    let x=Math.sin(th)*Math.cos(ph),y=Math.cos(th),z=Math.sin(th)*Math.sin(ph);
+    x+=x>0?0.07:-0.07;
+    pos[i*3]=x*RX*r*1.12; pos[i*3+1]=y*RY*r*1.08; pos[i*3+2]=z*RZ*r*1.08;
+    const c=new THREE.Color(COLORS[Math.floor(Math.random()*COLORS.length)]);
+    c.multiplyScalar(0.3+Math.random()*0.4);
+    col[i*3]=c.r; col[i*3+1]=c.g; col[i*3+2]=c.b;
+    sizes[i]=1+Math.random()*2.5;
+  }
+  const g=new THREE.BufferGeometry();
+  g.setAttribute('position',new THREE.BufferAttribute(pos,3));
+  g.setAttribute('color',new THREE.BufferAttribute(col,3));
+  g.setAttribute('size',new THREE.BufferAttribute(sizes,1));
+  const mat=new THREE.PointsMaterial({size:2,map:GLOW_SOFT,vertexColors:true,transparent:true,opacity:0.4,blending:THREE.AdditiveBlending,depthWrite:false,sizeAttenuation:true});
+  brain.add(new THREE.Points(g,mat));
+})();
+
+// ---------- NODI ----------
+const sphGeo=new THREE.SphereGeometry(2.2,12,12);
+const nodes=[];
+
+SKILL_LIST.forEach((label,i)=>{
+  const col=COLORS[i%COLORS.length];
+  const pos=brainPoint(i,SKILL_LIST.length);
+  const mat=new THREE.MeshBasicMaterial({color:col});
+  const mesh=new THREE.Mesh(sphGeo,mat);
+  mesh.position.copy(pos);
+  const spr=new THREE.Sprite(new THREE.SpriteMaterial({map:GLOW,color:col,transparent:true,opacity:0.8,blending:THREE.AdditiveBlending,depthWrite:false}));
+  spr.scale.set(14,14,1);
+  mesh.add(spr);
+  brain.add(mesh);
+  nodes.push({id:i,label:label,color:col,mesh:mesh,spr:spr,mat:mat,flare:0,energy:0});
+  mesh.userData.idx=i;
 });
-const wireframe = new THREE.Mesh(new THREE.IcosahedronGeometry(1.22, 4), wireMat);
-scene.add(wireframe);
 
-// Particelle (sinapsi)
-const PARTICLE_COUNT = 120;
-const pGeo = new THREE.BufferGeometry();
-const pPositions = new Float32Array(PARTICLE_COUNT * 3);
-const pVelocities = [];
-for (let i = 0; i < PARTICLE_COUNT; i++) {
-  const theta = Math.random() * Math.PI * 2;
-  const phi = Math.acos(2 * Math.random() - 1);
-  const r = 1.3 + Math.random() * 0.4;
-  pPositions[i * 3] = r * Math.sin(phi) * Math.cos(theta);
-  pPositions[i * 3 + 1] = r * Math.sin(phi) * Math.sin(theta);
-  pPositions[i * 3 + 2] = r * Math.cos(phi);
-  pVelocities.push({
-    x: (Math.random() - 0.5) * 0.003,
-    y: (Math.random() - 0.5) * 0.003,
-    z: (Math.random() - 0.5) * 0.003,
-  });
-}
-pGeo.setAttribute('position', new THREE.BufferAttribute(pPositions, 3));
-const pMat = new THREE.PointsMaterial({ color: 0x4fc3f7, size: 0.03, transparent: true, opacity: 0.6 });
-const particles = new THREE.Points(pGeo, pMat);
-scene.add(particles);
+document.getElementById('n-count').textContent=nodes.length;
 
-// Stato animazione
-let brainState = 'idle'; // idle | thinking | speaking
-let brainIntensity = 0;
-
-function setBrainState(state) {
-  brainState = state;
-  if (state === 'thinking') {
-    brainMat.emissive.setHex(0x0d3b6a);
-    pointLight.color.setHex(0x4fc3f7);
-    pMat.color.setHex(0x4fc3f7);
-  } else if (state === 'speaking') {
-    brainMat.emissive.setHex(0x1b5e20);
-    pointLight.color.setHex(0x81c784);
-    pMat.color.setHex(0x81c784);
-  } else {
-    brainMat.emissive.setHex(0x0d1b2a);
-    pointLight.color.setHex(0x4fc3f7);
-    pMat.color.setHex(0x4fc3f7);
-  }
-}
-
-function onResize() {
-  const w = canvas.parentElement.clientWidth;
-  const h = canvas.parentElement.clientHeight;
-  renderer.setSize(w, h);
-  camera.aspect = w / h;
-  camera.updateProjectionMatrix();
-}
-window.addEventListener('resize', onResize);
-onResize();
-
-const clock = new THREE.Clock();
-function animate() {
-  requestAnimationFrame(animate);
-  const t = clock.getElapsedTime();
-
-  // Rotazione lenta
-  brain.rotation.y = t * 0.15;
-  brain.rotation.x = Math.sin(t * 0.1) * 0.1;
-  wireframe.rotation.y = t * 0.15;
-  wireframe.rotation.x = Math.sin(t * 0.1) * 0.1;
-
-  // Pulsazione in base allo stato
-  const targetIntensity = brainState === 'idle' ? 0 : 1;
-  brainIntensity += (targetIntensity - brainIntensity) * 0.05;
-  const pulse = 1 + Math.sin(t * (brainState === 'thinking' ? 4 : 2)) * 0.02 * (1 + brainIntensity * 2);
-  brain.scale.setScalar(pulse);
-  wireframe.scale.setScalar(pulse * 1.01);
-
-  // Particelle
-  const pos = pGeo.attributes.position.array;
-  for (let i = 0; i < PARTICLE_COUNT; i++) {
-    pos[i * 3] += pVelocities[i].x * (1 + brainIntensity);
-    pos[i * 3 + 1] += pVelocities[i].y * (1 + brainIntensity);
-    pos[i * 3 + 2] += pVelocities[i].z * (1 + brainIntensity);
-    const d = Math.sqrt(pos[i*3]**2 + pos[i*3+1]**2 + pos[i*3+2]**2);
-    if (d > 2.0 || d < 1.1) {
-      pVelocities[i].x *= -1;
-      pVelocities[i].y *= -1;
-      pVelocities[i].z *= -1;
-    }
-  }
-  pGeo.attributes.position.needsUpdate = true;
-  pMat.opacity = 0.4 + brainIntensity * 0.4;
-
-  wireMat.opacity = 0.05 + brainIntensity * 0.08;
-
-  renderer.render(scene, camera);
-}
-animate();
-
-
-// ======================================================================
-// WEBSOCKET + UI
-// ======================================================================
-const chatArea = document.getElementById('chat-area');
-const inputText = document.getElementById('input-text');
-const btnSend = document.getElementById('btn-send');
-const btnMic = document.getElementById('btn-mic');
-const statusBar = document.getElementById('status-bar');
-
-let ws = null;
-let mediaRecorder = null;
-let audioChunks = [];
-let isRecording = false;
-let currentAudio = null;
-
-function getWsUrl() {
-  const proto = location.protocol === 'https:' ? 'wss' : 'ws';
-  return `${proto}://${location.host}/ws`;
-}
-
-function connectWs() {
-  statusBar.textContent = 'Connessione...';
-  statusBar.className = '';
-  ws = new WebSocket(getWsUrl());
-
-  ws.onopen = () => {
-    statusBar.textContent = 'Atlas online';
-    statusBar.className = '';
-    addMessage('bot', `Ciao! Sono Atlas. Dimmi qualcosa o premi il microfono per parlare.`);
-  };
-
-  ws.onmessage = (e) => {
-    const msg = JSON.parse(e.data);
-
-    if (msg.type === 'state') {
-      if (msg.state === 'thinking') {
-        statusBar.textContent = 'Sto pensando...';
-        statusBar.className = 'thinking';
-        setBrainState('thinking');
-      } else if (msg.state === 'speaking') {
-        statusBar.textContent = 'Rispondo...';
-        statusBar.className = 'speaking';
-        setBrainState('speaking');
-      } else {
-        statusBar.textContent = 'Atlas online';
-        statusBar.className = '';
-        setBrainState('idle');
+// ---------- CONNESSIONI ----------
+const CURVE_SEG=6;
+function buildAllLinks(){
+  const pos=[],col=[];
+  for(let i=0;i<nodes.length;i++){
+    for(let j=i+1;j<nodes.length;j++){
+      const a=nodes[i],b=nodes[j];
+      const pa=a.mesh.position, pb=b.mesh.position;
+      const mid=pa.clone().add(pb).multiplyScalar(0.5);
+      const dist=pa.distanceTo(pb);
+      const out=mid.clone().normalize().multiplyScalar(8+dist*0.06);
+      const ctrl=mid.add(out);
+      const curve=new THREE.QuadraticBezierCurve3(pa.clone(),ctrl,pb.clone());
+      const pts=curve.getPoints(CURVE_SEG);
+      const ca=new THREE.Color(a.color),cb=new THREE.Color(b.color);
+      for(let k=0;k<CURVE_SEG;k++){
+        const t0=k/CURVE_SEG, t1=(k+1)/CURVE_SEG;
+        const p0=pts[k],p1=pts[k+1];
+        pos.push(p0.x,p0.y,p0.z, p1.x,p1.y,p1.z);
+        const c0=ca.clone().lerp(cb,t0).multiplyScalar(0.7);
+        const c1=ca.clone().lerp(cb,t1).multiplyScalar(0.7);
+        col.push(c0.r,c0.g,c0.b, c1.r,c1.g,c1.b);
       }
     }
+  }
+  const g=new THREE.BufferGeometry();
+  g.setAttribute('position',new THREE.Float32BufferAttribute(pos,3));
+  g.setAttribute('color',new THREE.Float32BufferAttribute(col,3));
+  return new THREE.LineSegments(g,new THREE.LineBasicMaterial({
+    vertexColors:true,transparent:true,opacity:0.28,
+    blending:THREE.AdditiveBlending,depthWrite:false,linewidth:1
+  }));
+}
+const linkMesh=buildAllLinks();
+brain.add(linkMesh);
 
-    else if (msg.type === 'transcript') {
-      addMessage('user', msg.text);
+// ---------- IMPULSI VIAGGIANTI ----------
+const pulses=[];
+function spawnPulse(fromIdx,toIdx,color){
+  const a=nodes[fromIdx],b=nodes[toIdx];
+  const pa=a.mesh.position, pb=b.mesh.position;
+  const mid=pa.clone().add(pb).multiplyScalar(0.5);
+  const dist=pa.distanceTo(pb);
+  const out=mid.clone().normalize().multiplyScalar(8+dist*0.06);
+  const ctrl=mid.clone().add(out);
+  const curve=new THREE.QuadraticBezierCurve3(pa.clone(),ctrl,pb.clone());
+  const s=new THREE.Sprite(new THREE.SpriteMaterial({map:GLOW,color:color||a.color,transparent:true,opacity:0.9,blending:THREE.AdditiveBlending,depthWrite:false}));
+  s.scale.set(6,6,1);
+  brain.add(s);
+  pulses.push({s:s,curve:curve,t:0,speed:0.008+Math.random()*0.012});
+}
+
+// ---------- FLASH SINAPTICI ----------
+const synapseFlashes=[];
+function spawnSynapseFlash(nodeIdx){
+  const n=nodes[nodeIdx];
+  const flash=new THREE.Sprite(new THREE.SpriteMaterial({
+    map:GLOW,color:n.color,transparent:true,opacity:1.0,
+    blending:THREE.AdditiveBlending,depthWrite:false
+  }));
+  flash.position.copy(n.mesh.position);
+  flash.scale.set(4,4,1);
+  brain.add(flash);
+  synapseFlashes.push({
+    s:flash, born:performance.now(), dur:600+Math.random()*400,
+    maxScale:30+Math.random()*40, nodeIdx:nodeIdx
+  });
+  const nearby=[];
+  for(let j=0;j<nodes.length;j++){
+    if(j===nodeIdx) continue;
+    const d=n.mesh.position.distanceTo(nodes[j].mesh.position);
+    if(d<120) nearby.push(j);
+  }
+  const count=Math.min(nearby.length, 2+Math.floor(Math.random()*2));
+  for(let k=0;k<count;k++){
+    const target=nearby[Math.floor(Math.random()*nearby.length)];
+    spawnPulse(nodeIdx,target,n.color);
+  }
+}
+
+// ---------- ALONI ----------
+const halos=[];
+function spawnHalo(node){
+  const h=new THREE.Sprite(new THREE.SpriteMaterial({map:GLOW_SOFT,color:node.color,transparent:true,opacity:0.5,blending:THREE.AdditiveBlending,depthWrite:false}));
+  h.position.copy(node.mesh.position);
+  h.scale.set(20,20,1);
+  brain.add(h);
+  halos.push({s:h,born:performance.now(),dur:1200,maxScale:90});
+}
+
+// ---------- STATO MOTORE ----------
+let state='idle';
+let level=0.3;
+let lastSynapseTime=0;
+let breathTarget=1.0;
+let breathCurrent=1.0;
+
+// ---------- UI ----------
+const chatLog=document.getElementById('chat-log');
+const inputBar=document.getElementById('input-bar');
+const txtInput=document.getElementById('txt-input');
+const voiceDot=document.getElementById('voice-dot');
+const voiceLabel=document.getElementById('voice-label');
+const btnKb=document.getElementById('btn-kb');
+const btnMic=document.getElementById('btn-mic-toggle');
+const btnStop=document.getElementById('btn-stop');
+let inputVisible=false;
+
+function updateVoiceIndicator(stato){
+  voiceDot.className='';
+  const labels={attesa:'In attesa',ascolto:'Ti ascolto...',pensiero:'Sto pensando...',parlo:'Sto parlando...',connessione:'Connessione...'};
+  voiceLabel.textContent=labels[stato]||labels.attesa;
+  if(stato!=='attesa'&&stato!=='connessione') voiceDot.classList.add(stato);
+}
+
+// ================================================================
+// WEBSOCKET
+// ================================================================
+let ws=null;
+let currentAudio=null;
+let isRecording=false;
+let mediaRecorder=null;
+let audioChunks=[];
+
+function getWsUrl(){
+  const proto=location.protocol==='https:'?'wss':'ws';
+  return proto+'://'+location.host+'/ws';
+}
+
+function connectWs(){
+  updateVoiceIndicator('connessione');
+  document.getElementById('status-text').textContent='Connessione...';
+  ws=new WebSocket(getWsUrl());
+
+  ws.onopen=function(){
+    document.getElementById('status-text').textContent='Neural Network Online';
+    updateVoiceIndicator('attesa');
+    atlas.addMessage('Atlas','Ciao! Sono Atlas. Dimmi qualcosa o premi il microfono per parlare.');
+  };
+
+  ws.onmessage=function(e){
+    const msg=JSON.parse(e.data);
+
+    if(msg.type==='state'){
+      if(msg.state==='thinking'){
+        atlas.setState('reasoning');
+      } else if(msg.state==='speaking'){
+        atlas.setState('speaking');
+      } else {
+        atlas.setState('idle');
+      }
     }
-
-    else if (msg.type === 'response') {
-      addMessage('bot', msg.text);
-      if (msg.audio) {
+    else if(msg.type==='transcript'){
+      atlas.addMessage('Tu',msg.text);
+    }
+    else if(msg.type==='response'){
+      atlas.addMessage('Atlas',msg.text);
+      if(msg.audio){
         playAudioB64(msg.audio);
       } else {
-        setBrainState('idle');
-        statusBar.textContent = 'Atlas online';
-        statusBar.className = '';
+        atlas.setState('idle');
       }
     }
-
-    else if (msg.type === 'pong') {
-      // keepalive ok
-    }
   };
 
-  ws.onclose = () => {
-    statusBar.textContent = 'Disconnesso. Riconnessione...';
-    statusBar.className = '';
-    setBrainState('idle');
-    setTimeout(connectWs, 3000);
+  ws.onclose=function(){
+    document.getElementById('status-text').textContent='Disconnesso...';
+    updateVoiceIndicator('connessione');
+    atlas.setState('idle');
+    setTimeout(connectWs,3000);
   };
-
-  ws.onerror = () => {
-    ws.close();
-  };
+  ws.onerror=function(){ws.close();};
 }
 
-// Keepalive (Render chiude connessioni inattive)
-setInterval(() => {
-  if (ws && ws.readyState === WebSocket.OPEN) {
-    ws.send(JSON.stringify({ type: 'ping' }));
+// Keepalive ogni 25s (Render chiude connessioni inattive)
+setInterval(function(){
+  if(ws&&ws.readyState===WebSocket.OPEN){
+    ws.send(JSON.stringify({type:'ping'}));
   }
-}, 25000);
+},25000);
 
-function addMessage(who, text) {
-  const div = document.createElement('div');
-  div.className = `msg ${who}`;
-  div.textContent = text;
-  chatArea.appendChild(div);
-  chatArea.scrollTop = chatArea.scrollHeight;
-}
-
-function sendText(text) {
-  if (!text.trim() || !ws || ws.readyState !== WebSocket.OPEN) return;
-  addMessage('user', text);
-  ws.send(JSON.stringify({ type: 'text', text }));
-  inputText.value = '';
-}
-
-// Invia testo
-btnSend.addEventListener('click', () => sendText(inputText.value));
-inputText.addEventListener('keydown', (e) => {
-  if (e.key === 'Enter') sendText(inputText.value);
-});
-
-// Audio playback
-function playAudioB64(b64) {
-  try {
-    const bytes = Uint8Array.from(atob(b64), c => c.charCodeAt(0));
-    const blob = new Blob([bytes], { type: 'audio/mpeg' });
-    const url = URL.createObjectURL(blob);
-    if (currentAudio) {
-      currentAudio.pause();
-      currentAudio = null;
-    }
-    currentAudio = new Audio(url);
-    currentAudio.onended = () => {
-      setBrainState('idle');
-      statusBar.textContent = 'Atlas online';
-      statusBar.className = '';
+function playAudioB64(b64){
+  try{
+    const bytes=Uint8Array.from(atob(b64),function(c){return c.charCodeAt(0);});
+    const blob=new Blob([bytes],{type:'audio/mpeg'});
+    const url=URL.createObjectURL(blob);
+    if(currentAudio){currentAudio.pause();currentAudio=null;}
+    currentAudio=new Audio(url);
+    currentAudio.onended=function(){
+      atlas.setState('idle');
       URL.revokeObjectURL(url);
-      currentAudio = null;
+      currentAudio=null;
     };
-    currentAudio.play().catch(() => {
-      setBrainState('idle');
-      statusBar.textContent = 'Atlas online';
-      statusBar.className = '';
-    });
-  } catch (err) {
-    console.error('Audio playback error:', err);
-    setBrainState('idle');
+    currentAudio.play().catch(function(){atlas.setState('idle');});
+  }catch(err){
+    console.error('Audio error:',err);
+    atlas.setState('idle');
   }
 }
 
-// ======================================================================
-// MICROFONO (MediaRecorder API — funziona su tutti i browser moderni)
-// ======================================================================
-async function startRecording() {
-  try {
-    const stream = await navigator.mediaDevices.getUserMedia({
-      audio: { sampleRate: 16000, channelCount: 1, echoCancellation: true, noiseSuppression: true }
+// ================================================================
+// MICROFONO (MediaRecorder -> WAV -> WebSocket)
+// ================================================================
+function getMimeType(){
+  if(typeof MediaRecorder==='undefined') return '';
+  if(MediaRecorder.isTypeSupported('audio/webm;codecs=opus')) return 'audio/webm;codecs=opus';
+  if(MediaRecorder.isTypeSupported('audio/webm')) return 'audio/webm';
+  if(MediaRecorder.isTypeSupported('audio/mp4')) return 'audio/mp4';
+  return '';
+}
+
+async function blobToWav(blob){
+  try{
+    const ctx=new (window.AudioContext||window.webkitAudioContext)({sampleRate:16000});
+    const arrayBuffer=await blob.arrayBuffer();
+    const audioBuffer=await ctx.decodeAudioData(arrayBuffer);
+    const offlineCtx=new OfflineAudioContext(1,audioBuffer.duration*16000,16000);
+    const source=offlineCtx.createBufferSource();
+    source.buffer=audioBuffer;
+    source.connect(offlineCtx.destination);
+    source.start();
+    const rendered=await offlineCtx.startRendering();
+    ctx.close();
+    const samples=rendered.getChannelData(0);
+    const wavBuffer=new ArrayBuffer(44+samples.length*2);
+    const view=new DataView(wavBuffer);
+    function writeStr(offset,str){for(let i=0;i<str.length;i++)view.setUint8(offset+i,str.charCodeAt(i));}
+    writeStr(0,'RIFF');
+    view.setUint32(4,36+samples.length*2,true);
+    writeStr(8,'WAVE');
+    writeStr(12,'fmt ');
+    view.setUint32(16,16,true);
+    view.setUint16(20,1,true);
+    view.setUint16(22,1,true);
+    view.setUint32(24,16000,true);
+    view.setUint32(28,32000,true);
+    view.setUint16(32,2,true);
+    view.setUint16(34,16,true);
+    writeStr(36,'data');
+    view.setUint32(40,samples.length*2,true);
+    for(let i=0;i<samples.length;i++){
+      const s=Math.max(-1,Math.min(1,samples[i]));
+      view.setInt16(44+i*2,s<0?s*0x8000:s*0x7FFF,true);
+    }
+    return new Blob([wavBuffer],{type:'audio/wav'});
+  }catch(e){
+    return blob;
+  }
+}
+
+async function startRecording(){
+  try{
+    const stream=await navigator.mediaDevices.getUserMedia({
+      audio:{sampleRate:16000,channelCount:1,echoCancellation:true,noiseSuppression:true}
     });
-    audioChunks = [];
-    mediaRecorder = new MediaRecorder(stream, { mimeType: getMimeType() });
-    mediaRecorder.ondataavailable = (e) => {
-      if (e.data.size > 0) audioChunks.push(e.data);
+    audioChunks=[];
+    const mime=getMimeType();
+    mediaRecorder=mime?new MediaRecorder(stream,{mimeType:mime}):new MediaRecorder(stream);
+    mediaRecorder.ondataavailable=function(e){
+      if(e.data.size>0) audioChunks.push(e.data);
     };
-    mediaRecorder.onstop = async () => {
-      stream.getTracks().forEach(t => t.stop());
-      if (audioChunks.length === 0) return;
-      const blob = new Blob(audioChunks, { type: mediaRecorder.mimeType });
-      // Converti in WAV per Whisper
-      const wavBlob = await blobToWav(blob);
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        const b64 = reader.result.split(',')[1];
-        if (ws && ws.readyState === WebSocket.OPEN) {
-          ws.send(JSON.stringify({ type: 'audio', data: b64 }));
+    mediaRecorder.onstop=async function(){
+      stream.getTracks().forEach(function(t){t.stop();});
+      if(audioChunks.length===0) return;
+      const blob=new Blob(audioChunks,{type:mediaRecorder.mimeType});
+      const wavBlob=await blobToWav(blob);
+      const reader=new FileReader();
+      reader.onloadend=function(){
+        const b64=reader.result.split(',')[1];
+        if(ws&&ws.readyState===WebSocket.OPEN){
+          ws.send(JSON.stringify({type:'audio',data:b64}));
         }
       };
       reader.readAsDataURL(wavBlob);
     };
     mediaRecorder.start();
-    isRecording = true;
+    isRecording=true;
     btnMic.classList.add('recording');
-    statusBar.textContent = 'Sto ascoltando...';
-    statusBar.className = 'recording';
-  } catch (err) {
-    console.error('Mic error:', err);
-    statusBar.textContent = 'Microfono non disponibile';
-    setTimeout(() => { statusBar.textContent = 'Atlas online'; }, 2000);
+    updateVoiceIndicator('ascolto');
+  }catch(err){
+    console.error('Mic error:',err);
+    atlas.addMessage('Atlas','Microfono non disponibile. Usa la tastiera per scrivere.');
   }
 }
 
-function stopRecording() {
-  if (mediaRecorder && mediaRecorder.state === 'recording') {
+function stopRecording(){
+  if(mediaRecorder&&mediaRecorder.state==='recording'){
     mediaRecorder.stop();
   }
-  isRecording = false;
+  isRecording=false;
   btnMic.classList.remove('recording');
-  statusBar.textContent = 'Atlas online';
-  statusBar.className = '';
+  updateVoiceIndicator('attesa');
 }
 
-function getMimeType() {
-  if (MediaRecorder.isTypeSupported('audio/webm;codecs=opus')) return 'audio/webm;codecs=opus';
-  if (MediaRecorder.isTypeSupported('audio/webm')) return 'audio/webm';
-  if (MediaRecorder.isTypeSupported('audio/mp4')) return 'audio/mp4';
-  return '';
-}
-
-// Converti qualsiasi audio blob in WAV 16kHz mono (per Whisper)
-async function blobToWav(blob) {
-  const ctx = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 16000 });
-  const arrayBuffer = await blob.arrayBuffer();
-  let audioBuffer;
-  try {
-    audioBuffer = await ctx.decodeAudioData(arrayBuffer);
-  } catch (e) {
-    // Se il decode fallisce, invia il blob originale
-    ctx.close();
-    return blob;
+// ================================================================
+// API window.atlas (come l'originale, ma con WebSocket)
+// ================================================================
+window.atlas={
+  setState:function(s){
+    state=s;
+    const txt={idle:'Neural Network Online',speaking:'Sto parlando...',reasoning:'Sto ragionando...'};
+    document.getElementById('status-text').textContent=txt[s]||txt.idle;
+    const voiceMap={idle:'attesa',speaking:'parlo',reasoning:'pensiero'};
+    updateVoiceIndicator(voiceMap[s]||'attesa');
+    btnStop.style.opacity=s==='speaking'?'1':'0.3';
+    if(s==='reasoning'){
+      const count=5+Math.floor(Math.random()*4);
+      for(let i=0;i<count;i++){
+        const idx=Math.floor(Math.random()*nodes.length);
+        this.fire(nodes[idx].label);
+      }
+    }
+    if(s==='speaking'){
+      for(let i=0;i<6;i++){
+        setTimeout(function(){spawnSynapseFlash(Math.floor(Math.random()*nodes.length));},i*100);
+      }
+    }
+  },
+  setLevel:function(v){level=Math.max(0,Math.min(1,v));},
+  fire:function(skillName){
+    const n=nodes.find(function(x){return x.label.toLowerCase()===String(skillName).toLowerCase();});
+    if(!n)return;
+    n.flare=performance.now();
+    n.energy=1;
+    spawnHalo(n);
+    spawnSynapseFlash(n.id);
+  },
+  fireRandom:function(){
+    const n=nodes[Math.floor(Math.random()*nodes.length)];
+    this.fire(n.label);
+  },
+  addMessage:function(who,text){
+    chatLog.style.display='block';
+    const div=document.createElement('div');
+    div.className='msg '+(who==='Tu'?'tu':'ai');
+    div.innerHTML='<div class="who">'+who+'</div><div class="txt">'+text.replace(/</g,'&lt;').replace(/\n/g,'<br>')+'</div>';
+    chatLog.appendChild(div);
+    chatLog.scrollTop=chatLog.scrollHeight;
+    clearTimeout(chatLog._hideTimer);
+    chatLog._hideTimer=setTimeout(function(){if(!inputVisible) chatLog.style.display='none';},15000);
+  },
+  toggleInput:function(){
+    inputVisible=!inputVisible;
+    inputBar.style.display=inputVisible?'flex':'none';
+    chatLog.style.display=inputVisible?'block':chatLog.children.length?'block':'none';
+    btnKb.classList.toggle('active',inputVisible);
+    if(inputVisible) txtInput.focus();
+  },
+  toggleMic:function(){
+    if(isRecording){
+      stopRecording();
+    }else{
+      startRecording();
+    }
+  },
+  sendText:function(){
+    const t=txtInput.value.trim();
+    if(!t) return;
+    txtInput.value='';
+    this.addMessage('Tu',t);
+    if(ws&&ws.readyState===WebSocket.OPEN){
+      ws.send(JSON.stringify({type:'text',text:t}));
+    }
+  },
+  stopVoice:function(){
+    if(currentAudio){
+      currentAudio.pause();
+      currentAudio=null;
+    }
+    this.setState('idle');
+  },
+  toggleFullscreen:function(){
+    if(!document.fullscreenElement){document.documentElement.requestFullscreen().catch(function(){});}
+    else{document.exitFullscreen();}
+  },
+  toggleSkills:function(){
+    const dd=document.getElementById('skill-dropdown');
+    if(dd.classList.contains('open')){dd.classList.remove('open');return;}
+    if(!dd.children.length){
+      dd.innerHTML='<div class="sk-head">Tutte le Skill</div>';
+      SKILL_LIST.forEach(function(name,i){
+        const col=COLORS[i%COLORS.length];
+        const item=document.createElement('div');
+        item.className='sk-item';
+        item.innerHTML='<span class="sk-dot" style="background:#'+col.toString(16).padStart(6,'0')+'"></span>'+name;
+        item.onclick=function(e){e.stopPropagation();atlas.fire(name);};
+        dd.appendChild(item);
+      });
+    }
+    dd.classList.add('open');
   }
-  // Resample a 16kHz mono
-  const offlineCtx = new OfflineAudioContext(1, audioBuffer.duration * 16000, 16000);
-  const source = offlineCtx.createBufferSource();
-  source.buffer = audioBuffer;
-  source.connect(offlineCtx.destination);
-  source.start();
-  const rendered = await offlineCtx.startRendering();
-  ctx.close();
-
-  // Costruisci WAV
-  const samples = rendered.getChannelData(0);
-  const wavBuffer = new ArrayBuffer(44 + samples.length * 2);
-  const view = new DataView(wavBuffer);
-  // Header WAV
-  const writeStr = (offset, str) => { for (let i = 0; i < str.length; i++) view.setUint8(offset + i, str.charCodeAt(i)); };
-  writeStr(0, 'RIFF');
-  view.setUint32(4, 36 + samples.length * 2, true);
-  writeStr(8, 'WAVE');
-  writeStr(12, 'fmt ');
-  view.setUint32(16, 16, true);
-  view.setUint16(20, 1, true); // PCM
-  view.setUint16(22, 1, true); // mono
-  view.setUint32(24, 16000, true); // sample rate
-  view.setUint32(28, 32000, true); // byte rate
-  view.setUint16(32, 2, true); // block align
-  view.setUint16(34, 16, true); // bits per sample
-  writeStr(36, 'data');
-  view.setUint32(40, samples.length * 2, true);
-  for (let i = 0; i < samples.length; i++) {
-    const s = Math.max(-1, Math.min(1, samples[i]));
-    view.setInt16(44 + i * 2, s < 0 ? s * 0x8000 : s * 0x7FFF, true);
-  }
-  return new Blob([wavBuffer], { type: 'audio/wav' });
-}
-
-// Mic: tap per registrare, tap di nuovo per fermare
-btnMic.addEventListener('click', () => {
-  if (isRecording) {
-    stopRecording();
-  } else {
-    startRecording();
-  }
+};
+txtInput.addEventListener('keydown',function(e){if(e.key==='Enter'){e.preventDefault();atlas.sendText();}});
+document.addEventListener('click',function(e){
+  const dd=document.getElementById('skill-dropdown');
+  const stats=document.getElementById('stats');
+  if(dd.classList.contains('open')&&!stats.contains(e.target)){dd.classList.remove('open');}
 });
 
-// Stop audio corrente se l'utente clicca sul cervello
-document.getElementById('brain-container').addEventListener('click', () => {
-  if (currentAudio) {
-    currentAudio.pause();
-    currentAudio = null;
-    setBrainState('idle');
-    statusBar.textContent = 'Atlas online';
-    statusBar.className = '';
+// ---------- CAMERA ----------
+let rotX=-0.15,rotY=0.3,autoIdle=0,dragging=false,panning=false,lastX=0,lastY=0,moved=0;
+let panX=0,panY=-60;
+let pointers=new Map(),pinch0=0,zoom0=0;
+
+cv.addEventListener('pointerdown',function(e){
+  cv.setPointerCapture(e.pointerId);
+  pointers.set(e.pointerId,{x:e.clientX,y:e.clientY});
+  if(pointers.size===1){
+    panning=(e.button===2||e.shiftKey);
+    dragging=true;lastX=e.clientX;lastY=e.clientY;moved=0;
+    cv.classList.add('grabbing');
   }
+  if(pointers.size===2){var p=[...pointers.values()];pinch0=Math.hypot(p[0].x-p[1].x,p[0].y-p[1].y);zoom0=camera.position.z;}
+});
+cv.addEventListener('contextmenu',function(e){e.preventDefault();});
+cv.addEventListener('pointermove',function(e){
+  if(pointers.has(e.pointerId))pointers.set(e.pointerId,{x:e.clientX,y:e.clientY});
+  if(pointers.size===2){var p=[...pointers.values()];var d=Math.hypot(p[0].x-p[1].x,p[0].y-p[1].y);if(pinch0)camera.position.z=Math.max(180,Math.min(800,zoom0*pinch0/d));return;}
+  if(dragging){
+    var dx=e.clientX-lastX,dy=e.clientY-lastY;
+    if(panning){panX+=dx*0.5;panY-=dy*0.5;}
+    else{rotY+=dx*0.005;rotX+=dy*0.005;rotX=Math.max(-1.2,Math.min(1.2,rotX));}
+    lastX=e.clientX;lastY=e.clientY;moved+=Math.abs(dx)+Math.abs(dy);autoIdle=performance.now();
+  }
+  else{hoverCheck(e.clientX,e.clientY);}
+});
+function endDrag(e){
+  pointers.delete(e.pointerId);if(pointers.size<2)pinch0=0;
+  if(dragging&&pointers.size===0){dragging=false;panning=false;cv.classList.remove('grabbing');autoIdle=performance.now();}
+}
+cv.addEventListener('pointerup',endDrag);
+cv.addEventListener('pointercancel',endDrag);
+cv.addEventListener('wheel',function(e){e.preventDefault();camera.position.z=Math.max(180,Math.min(600,camera.position.z+e.deltaY*0.3));autoIdle=performance.now();},{passive:false});
+
+// ---------- HOVER / TOOLTIP ----------
+const ray=new THREE.Raycaster();
+const m2=new THREE.Vector2();
+const tip=document.getElementById('tip');
+let hoveredIdx=-1;
+function hoverCheck(px,py){
+  m2.x=(px/innerWidth)*2-1;m2.y=-(py/innerHeight)*2+1;
+  ray.setFromCamera(m2,camera);
+  var hits=ray.intersectObjects(nodes.map(function(n){return n.mesh;}),false);
+  if(hits.length){
+    var idx=hits[0].object.userData.idx;
+    if(idx!==hoveredIdx){hoveredIdx=idx;tip.textContent=nodes[idx].label;tip.style.display='block';cv.style.cursor='pointer';}
+    tip.style.left=px+'px';tip.style.top=py+'px';
+  }else{
+    if(hoveredIdx>=0){hoveredIdx=-1;tip.style.display='none';cv.style.cursor='grab';}
+  }
+}
+cv.addEventListener('click',function(e){
+  if(moved>8)return;
+  if(hoveredIdx>=0)atlas.fire(nodes[hoveredIdx].label);
 });
 
-// Avvia connessione
+// ---------- RESIZE ----------
+function resize(){renderer.setSize(innerWidth,innerHeight,false);camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();}
+addEventListener('resize',resize);resize();
+
+// ================================================================
+// RENDER LOOP
+// ================================================================
+function frame(t){
+  if(t-autoIdle>2500)rotY+=0.0012;
+  brain.rotation.x+=(rotX-brain.rotation.x)*0.08;
+  brain.rotation.y+=(rotY-brain.rotation.y)*0.08;
+  brain.position.x+=(panX-brain.position.x)*0.12;
+  brain.position.y+=(panY-brain.position.y)*0.12;
+
+  if(state==='speaking'){
+    breathTarget=1.0+Math.sin(t*0.002)*0.06;
+  }else{
+    breathTarget=1.0;
+  }
+  breathCurrent+=(breathTarget-breathCurrent)*0.04;
+  brain.scale.setScalar(breathCurrent);
+
+  var thinkGlow=state==='reasoning'?0.3:0;
+
+  if(state==='speaking'&&t-lastSynapseTime>200){
+    lastSynapseTime=t;
+    spawnSynapseFlash(Math.floor(Math.random()*nodes.length));
+  }
+
+  for(var ni=0;ni<nodes.length;ni++){
+    var n=nodes[ni];
+    var fl=Math.max(0,1-(t-n.flare)/1400);
+    n.energy*=0.97;
+    var e=Math.max(fl,n.energy,thinkGlow);
+    var glowBase=state==='speaking'?14:12;
+    var scale=glowBase+e*22;
+    n.spr.scale.setScalar(scale);
+    n.spr.material.opacity=0.5+e*0.5;
+    var c=new THREE.Color(n.color);
+    if(e>0.01)c.lerp(new THREE.Color(0xffffff),e*0.5);
+    n.spr.material.color.copy(c);
+    n.mat.color.copy(c);
+    n.mesh.scale.setScalar(1+e*0.6);
+  }
+
+  var speakBoost=state==='speaking'?0.10:0;
+  linkMesh.material.opacity=0.22+speakBoost+thinkGlow*0.1+level*0.05;
+
+  var pulseRate=state==='idle'?0.005:state==='speaking'?0.08:0.10;
+  if(Math.random()<pulseRate){
+    var a=Math.floor(Math.random()*nodes.length);
+    var b=Math.floor(Math.random()*nodes.length);
+    if(b===a)b=(a+1)%nodes.length;
+    spawnPulse(a,b);
+  }
+
+  for(var pi=pulses.length-1;pi>=0;pi--){
+    var p=pulses[pi];
+    p.t+=p.speed;
+    if(p.t>=1){brain.remove(p.s);p.s.material.dispose();pulses.splice(pi,1);continue;}
+    p.s.position.copy(p.curve.getPoint(p.t));
+    p.s.material.opacity=0.85*(1-p.t*0.6);
+    p.s.scale.setScalar(5+Math.sin(p.t*Math.PI)*4);
+  }
+
+  for(var si=synapseFlashes.length-1;si>=0;si--){
+    var sf=synapseFlashes[si];
+    var k=(t-sf.born)/sf.dur;
+    if(k>=1){brain.remove(sf.s);sf.s.material.dispose();synapseFlashes.splice(si,1);continue;}
+    sf.s.scale.setScalar(4+sf.maxScale*Math.pow(k,0.3));
+    sf.s.material.opacity=(1-k)*(1-k)*0.8;
+    sf.s.position.copy(nodes[sf.nodeIdx].mesh.position);
+  }
+
+  for(var hi=halos.length-1;hi>=0;hi--){
+    var h=halos[hi];
+    var hk=(t-h.born)/h.dur;
+    if(hk>=1){brain.remove(h.s);h.s.material.dispose();halos.splice(hi,1);continue;}
+    h.s.scale.setScalar(20+(h.maxScale-20)*hk);
+    h.s.material.opacity=0.45*(1-hk);
+  }
+
+  renderer.render(scene,camera);
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+
+// Avvia WebSocket
 connectWs();
+
+})();
 </script>
 </body>
 </html>
