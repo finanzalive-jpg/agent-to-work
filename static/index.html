@@ -331,6 +331,34 @@ function updateVoiceIndicator(stato){
 // ================================================================
 let ws=null;
 let currentAudio=null;
+// AudioContext globale - si sblocca al primo tap (necessario su iOS/Android)
+let audioCtx=null;
+let audioUnlocked=false;
+function ensureAudioCtx(){
+  if(!audioCtx) audioCtx=new (window.AudioContext||window.webkitAudioContext)();
+  if(audioCtx.state==='suspended') audioCtx.resume();
+  return audioCtx;
+}
+// Sblocca audio al primo tocco dell'utente
+document.addEventListener('touchstart',function unlockAudio(){
+  ensureAudioCtx();
+  // Suona un buffer silenzioso per sbloccare
+  var buf=audioCtx.createBuffer(1,1,22050);
+  var src=audioCtx.createBufferSource();
+  src.buffer=buf;src.connect(audioCtx.destination);src.start(0);
+  audioUnlocked=true;
+  document.removeEventListener('touchstart',unlockAudio,true);
+  document.removeEventListener('click',unlockAudio,true);
+},{capture:true,passive:true});
+document.addEventListener('click',function unlockClick(){
+  ensureAudioCtx();
+  var buf=audioCtx.createBuffer(1,1,22050);
+  var src=audioCtx.createBufferSource();
+  src.buffer=buf;src.connect(audioCtx.destination);src.start(0);
+  audioUnlocked=true;
+  document.removeEventListener('click',unlockClick,true);
+  document.removeEventListener('touchstart',unlockClick,true);
+},{capture:true,passive:true});
 let isRecording=false;
 let mediaRecorder=null;
 let audioChunks=[];
@@ -398,13 +426,31 @@ function playAudioB64(b64){
     const blob=new Blob([bytes],{type:'audio/mpeg'});
     const url=URL.createObjectURL(blob);
     if(currentAudio){currentAudio.pause();currentAudio=null;}
+    // Usa AudioContext sbloccato per garantire playback su mobile
+    var ctx=ensureAudioCtx();
     currentAudio=new Audio(url);
+    // Collega Audio a AudioContext per sfruttare lo sblocco
+    var source=ctx.createMediaElementSource(currentAudio);
+    source.connect(ctx.destination);
     currentAudio.onended=function(){
       atlas.setState('idle');
       URL.revokeObjectURL(url);
       currentAudio=null;
     };
-    currentAudio.play().catch(function(){atlas.setState('idle');});
+    currentAudio.onerror=function(){
+      console.error('Audio playback error');
+      atlas.setState('idle');
+      URL.revokeObjectURL(url);
+      currentAudio=null;
+    };
+    var p=currentAudio.play();
+    if(p&&p.catch) p.catch(function(e){
+      console.warn('Play blocked:',e);
+      // Fallback: riprova dopo resume del context
+      ctx.resume().then(function(){
+        currentAudio.play().catch(function(){atlas.setState('idle');});
+      });
+    });
   }catch(err){
     console.error('Audio error:',err);
     atlas.setState('idle');
