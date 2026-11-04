@@ -14,7 +14,7 @@ def get_total_ram():
             with open('/proc/meminfo', 'r') as f:
                 for line in f:
                     if 'MemTotal' in line:
-                        return round(int(line.split()) / (1024 ** 2))
+                        return round(int(line.split()[1]) / (1024 ** 2))
         return 8
 
 def select_model_profile(ram_gb):
@@ -87,15 +87,58 @@ def main():
         print(f"[X] Errore durante il download del modello: {e}")
         
     config_data = {
-        "assistant_name": "Sara",
+        "assistant_name": "Atlas",
         "detected_ram_gb": ram,
         "model_in_use": profilo["model"],
-        "num_ctx": profilo["num_ctx"]
+        "num_ctx": profilo["num_ctx"],
+
+        # CERVELLO INTERCAMBIABILE
+        # provider = "groq"   -> veloce, in cloud (metti la chiave in .env: GROQ_API_KEY=...)
+        # provider = "ollama" -> tutto in locale (serve Ollama in esecuzione, nessuna chiave)
+        # Per passare al locale domani: cambia solo "provider" in "ollama".
+        "brain": {
+            "provider": "groq",
+            "model": "openai/gpt-oss-20b",
+            "base_url": "https://api.groq.com/openai/v1",
+            "api_key_env": "GROQ_API_KEY",
+            "temperature": 0.1,
+
+            "ollama_model": profilo["model"],
+            "ollama_host": "http://127.0.0.1:11434",
+            "num_ctx": profilo["num_ctx"],
+
+            # Voce (gratis): Whisper su Groq per ascoltare, Edge-TTS per parlare
+            "stt_model": "whisper-large-v3-turbo"
+        },
+
+        # Voce parlata (Edge-TTS, gratis). Femminile: it-IT-ElsaNeural
+        "voce": "it-IT-DiegoNeural",
+
+        # Citta' per il meteo del notiziario (cambia qui i tuoi valori)
+        "meteo": {
+            "citta": "Roma",
+            "lat": 41.90,
+            "lon": 12.50
+        }
     }
-    
+
+    # Non sovrascrivere un config.json gia' esistente: l'utente potrebbe aver gia'
+    # scelto il provider o cambiato il nome dell'assistente.
+    if os.path.exists("config.json"):
+        try:
+            with open("config.json", "r") as f:
+                vecchio = json.load(f)
+            vecchio.update({k: v for k, v in config_data.items() if k != "brain"})
+            vecchio.setdefault("brain", config_data["brain"])
+            config_data = vecchio
+            print("[!] config.json esistente aggiornato (provider del cervello invariato).")
+        except Exception:
+            pass
+
     with open("config.json", "w") as f:
         json.dump(config_data, f, indent=4)
     print("[+] Configurazione salvata in 'config.json'.")
+    print("[i] Cervello impostato su '%s'. Per il cloud ricorda la chiave nel file .env." % config_data["brain"]["provider"])
 
 if __name__ == "__main__":
     main()
