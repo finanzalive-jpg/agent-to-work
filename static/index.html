@@ -398,8 +398,14 @@ function connectWs(){
       atlas.addMessage('Atlas',msg.text);
       if(msg.audio){
         playAudioB64(msg.audio);
-      } else {
-        atlas.setState('idle');
+      }
+      // Se non c'è audio, lo stato idle arriverà dal server
+      // oppure arriverà un messaggio type:"audio" separato
+    }
+    else if(msg.type==='audio'){
+      // Audio arriva separatamente dopo il testo
+      if(msg.data){
+        playAudioB64(msg.data);
       }
     }
   };

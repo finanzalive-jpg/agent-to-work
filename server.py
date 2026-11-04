@@ -54,6 +54,7 @@ BRAIN_CFG = {
     "base_url": os.getenv("GROQ_BASE_URL", "https://api.groq.com/openai/v1"),
     "model": os.getenv("GROQ_MODEL", "openai/gpt-oss-20b"),
     "temperature": 0.1,
+    "max_tokens": 250,  # Il JSON intent e' corto, limita per velocita'
     "stt_model": os.getenv("GROQ_STT_MODEL", "whisper-large-v3-turbo"),
 }
 
@@ -549,19 +550,22 @@ async def websocket_endpoint(ws: WebSocket):
                 # Processa il comando
                 risposta = await asyncio.to_thread(processa_comando, testo)
 
-                # Stato: parlando
-                await ws.send_text(json.dumps({"type": "state", "state": "speaking"}))
-
-                # Sintetizza la voce
-                audio_bytes = await sintetizza_voce(risposta)
-                audio_b64 = base64.b64encode(audio_bytes).decode() if audio_bytes else None
-
-                # Invia risposta
+                # Manda SUBITO il testo (il client lo mostra immediatamente)
                 await ws.send_text(json.dumps({
                     "type": "response",
                     "text": risposta,
-                    "audio": audio_b64,
+                    "audio": None,
                 }))
+
+                # Poi genera e manda l'audio separatamente
+                await ws.send_text(json.dumps({"type": "state", "state": "speaking"}))
+                audio_bytes = await sintetizza_voce(risposta)
+                if audio_bytes:
+                    audio_b64 = base64.b64encode(audio_bytes).decode()
+                    await ws.send_text(json.dumps({
+                        "type": "audio",
+                        "data": audio_b64,
+                    }))
 
                 # Stato: idle
                 await ws.send_text(json.dumps({"type": "state", "state": "idle"}))
@@ -593,16 +597,22 @@ async def websocket_endpoint(ws: WebSocket):
                 # Processa
                 risposta = await asyncio.to_thread(processa_comando, testo)
 
-                # TTS
-                await ws.send_text(json.dumps({"type": "state", "state": "speaking"}))
-                audio_out = await sintetizza_voce(risposta)
-                audio_out_b64 = base64.b64encode(audio_out).decode() if audio_out else None
-
+                # Manda SUBITO il testo
                 await ws.send_text(json.dumps({
                     "type": "response",
                     "text": risposta,
-                    "audio": audio_out_b64,
+                    "audio": None,
                 }))
+
+                # Poi genera e manda l'audio separatamente
+                await ws.send_text(json.dumps({"type": "state", "state": "speaking"}))
+                audio_out = await sintetizza_voce(risposta)
+                if audio_out:
+                    audio_out_b64 = base64.b64encode(audio_out).decode()
+                    await ws.send_text(json.dumps({
+                        "type": "audio",
+                        "data": audio_out_b64,
+                    }))
                 await ws.send_text(json.dumps({"type": "state", "state": "idle"}))
 
             elif msg_type == "ping":

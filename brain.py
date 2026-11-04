@@ -65,7 +65,7 @@ def _brain_cloud(system_prompt, testo_utente, schema, cfg):
         )
     client = OpenAI(api_key=api_key, base_url=cfg.get("base_url", "https://api.groq.com/openai/v1"))
     sys_completo = system_prompt + "\n\n" + _istruzioni_json(schema)
-    response = client.chat.completions.create(
+    kwargs = dict(
         model=cfg.get("model", "openai/gpt-oss-20b"),
         messages=[
             {"role": "system", "content": sys_completo},
@@ -74,6 +74,10 @@ def _brain_cloud(system_prompt, testo_utente, schema, cfg):
         temperature=cfg.get("temperature", 0.1),
         response_format={"type": "json_object"},  # garantisce JSON valido
     )
+    # Limita i token per la classificazione intent (la risposta JSON e' corta)
+    if cfg.get("max_tokens"):
+        kwargs["max_tokens"] = cfg["max_tokens"]
+    response = client.chat.completions.create(**kwargs)
     return json.loads(response.choices[0].message.content)
 
 
